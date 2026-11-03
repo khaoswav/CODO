@@ -7,12 +7,12 @@ struct ProjectTarget: Identifiable, Hashable {
     var id: String { name + productType }
 }
 
-struct ProjectAnalysis {
+struct ProjectMetadata: Identifiable {\n    let label: String\n    let value: String\n    var id: String { label }\n}\n\nstruct ProjectAnalysis {
     let projectName: String
     let projectKind: ProjectKind
     let rootPath: String
     let targets: [ProjectTarget]
-    let metadata: [(String, String)]
+    let metadata: [ProjectMetadata]
     let warnings: [String]
 }
 
@@ -31,7 +31,7 @@ enum ProjectAnalyzer {
                 projectKind: kind,
                 rootPath: root.path,
                 targets: [],
-                metadata: [("Folder", root.lastPathComponent)],
+                metadata: [ProjectMetadata(label: "Folder", value: root.lastPathComponent)],
                 warnings: ["No supported project manifest was found at the selected folder root."]
             )
         }
@@ -60,13 +60,13 @@ enum ProjectAnalyzer {
             platform = kind.rawValue
         }
 
-        var metadata: [(String, String)] = [
-            ("Project container", projectBundle?.lastPathComponent ?? "Not found"),
-            ("Platform hint", platform),
-            ("Xcode targets", String(targets.count))
+        var metadata: [ProjectMetadata] = [
+            ProjectMetadata(label: "Project container", value: projectBundle?.lastPathComponent ?? "Not found"),
+            ProjectMetadata(label: "Platform hint", value: platform),
+            ProjectMetadata(label: "Xcode targets", value: String(targets.count))
         ]
         if let bundleID = firstMatch(in: source, pattern: "PRODUCT_BUNDLE_IDENTIFIER = ([^;]+);") {
-            metadata.append(("Bundle identifier", bundleID.trimmingCharacters(in: .whitespacesAndNewlines)))
+            metadata.append(ProjectMetadata(label: "Bundle identifier", value: bundleID.trimmingCharacters(in: .whitespacesAndNewlines)))
         }
 
         var warnings: [String] = []
@@ -125,9 +125,9 @@ enum ProjectAnalyzer {
             rootPath: root.path,
             targets: [],
             metadata: [
-                ("Unity Editor", version),
-                ("Top-level Assets", String(assetCount)),
-                ("Package manifest", hasManifest ? "Found" : "Not found")
+                ProjectMetadata(label: "Unity Editor", value: version),
+                ProjectMetadata(label: "Top-level Assets", value: String(assetCount)),
+                ProjectMetadata(label: "Package manifest", value: hasManifest ? "Found" : "Not found")
             ],
             warnings: hasManifest ? [] : ["Unity package manifest was not found."]
         )
@@ -140,11 +140,11 @@ enum ProjectAnalyzer {
         let scripts = json["scripts"] as? [String: Any] ?? [:]
         let dependencies = json["dependencies"] as? [String: Any] ?? [:]
         let devDependencies = json["devDependencies"] as? [String: Any] ?? [:]
-        let metadata: [(String, String)] = [
-            ("Package name", json["name"] as? String ?? root.lastPathComponent),
-            ("Version", json["version"] as? String ?? "Not specified"),
-            ("Scripts", scripts.keys.sorted().joined(separator: ", ").isEmpty ? "None detected" : scripts.keys.sorted().joined(separator: ", ")),
-            ("Dependencies", String(dependencies.count + devDependencies.count))
+        let metadata: [ProjectMetadata] = [
+            ProjectMetadata(label: "Package name", value: json["name"] as? String ?? root.lastPathComponent),
+            ProjectMetadata(label: "Version", value: json["version"] as? String ?? "Not specified"),
+            ProjectMetadata(label: "Scripts", value: scripts.keys.sorted().joined(separator: ", ").isEmpty ? "None detected" : scripts.keys.sorted().joined(separator: ", ")),
+            ProjectMetadata(label: "Dependencies", value: String(dependencies.count + devDependencies.count))
         ]
         let warnings = data == nil ? ["package.json could not be read from the project root."] : []
         return ProjectAnalysis(
