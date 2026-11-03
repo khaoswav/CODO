@@ -59,8 +59,10 @@ final class AgentOrchestratorStore: ObservableObject {
     }
 
     var activeWorkflow: AgentWorkflow? {
-        guard let id = activeWorkflowID else { return nil }
-        return workflows.first { $0.id == id }
+        guard let id = activeWorkflowID,
+              let workflow = workflows.first(where: { $0.id == id }),
+              workflow.status == .running || workflow.status == .awaitingApproval else { return nil }
+        return workflow
     }
 
     @discardableResult
@@ -89,19 +91,19 @@ final class AgentOrchestratorStore: ObservableObject {
     var currentStepTitle: String? { activeStep?.title }
 
     func completeCurrentAndAdvance(_ summary: String) {
-        guard activeWorkflowID != nil else { return }
+        guard activeWorkflow != nil else { return }
         completeCurrentStep(summary)
         advanceToNextStep()
     }
 
     func proposalReady() {
-        guard activeWorkflowID != nil else { return }
+        guard activeWorkflow != nil else { return }
         completeCurrentStep("Goose returned a proposal. No files were changed automatically.")
         advanceToNextStep()
     }
 
     func reviewCompleted(appliedCount: Int, rejectedCount: Int) {
-        guard let workflowIndex = activeWorkflowIndex else { return }
+        guard activeWorkflow != nil, let workflowIndex = activeWorkflowIndex else { return }
         completeCurrentStep("\(appliedCount) file(s) applied, \(rejectedCount) rejected.")
         if appliedCount == 0 {
             for index in workflows[workflowIndex].steps.indices where workflows[workflowIndex].steps[index].status == .pending {
@@ -129,7 +131,7 @@ final class AgentOrchestratorStore: ObservableObject {
     }
 
     func buildSucceeded() {
-        guard activeWorkflowID != nil else { return }
+        guard activeWorkflow != nil else { return }
         completeCurrentStep("Approved build/test completed successfully.")
         advanceToNextStep()
         if activeStep != nil {
@@ -139,7 +141,7 @@ final class AgentOrchestratorStore: ObservableObject {
     }
 
     func buildFailed(_ summary: String) {
-        guard let index = activeWorkflowIndex, let step = activeStepIndex else { return }
+        guard activeWorkflow != nil, let index = activeWorkflowIndex, let step = activeStepIndex else { return }
         workflows[index].steps[step].status = .failed
         workflows[index].steps[step].finishedAt = .now
         workflows[index].steps[step].resultSummary = summary
