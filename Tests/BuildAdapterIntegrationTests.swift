@@ -143,7 +143,7 @@ struct BuildAdapterIntegrationTests {
         try expect(planned.arguments.contains(configuration),
                    "Xcode planner must preserve the requested CI configuration")
         try execute(planned, workingDirectory: root)
-        print("PASS: real CODO.xcodeproj built through ProjectBuildPlanner (\\(configuration))")
+        print("PASS: real CODO.xcodeproj built through ProjectBuildPlanner (" + configuration + ")")
     }
 
     @discardableResult
