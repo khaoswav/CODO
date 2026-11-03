@@ -108,13 +108,15 @@ final class ProjectProcessRunner: ObservableObject {
             return
         }
 
-        let task = Process()
-        let pipe = Pipe()
         let planned = ProjectBuildPlanner.plan(command, root: workingDirectory, project: project)
         if command.requiresApproval && planned == nil {
+            if needsScope { workingDirectory.stopAccessingSecurityScopedResource() }
             fail("Build configuration could not be prepared. Check the project structure and installed tools.")
             return
         }
+
+        let task = Process()
+        let pipe = Pipe()
         task.executableURL = planned?.executable ?? command.executable
         task.arguments = planned?.arguments ?? command.arguments
         task.currentDirectoryURL = workingDirectory
@@ -164,6 +166,7 @@ final class ProjectProcessRunner: ObservableObject {
 
     func stop() {
         guard let process, process.isRunning else { return }
+        wasStopped = true
         status = "Stopping…"
         process.terminate()
     }
