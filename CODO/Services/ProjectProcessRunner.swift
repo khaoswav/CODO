@@ -45,9 +45,7 @@ enum ProjectCommand: String, CaseIterable, Identifiable {
             [.location, .listFiles, .gitStatus, .xcodeTargets, .swiftVersion]
         case .web:
             [.location, .listFiles, .gitStatus, .nodeVersion, .npmVersion]
-        case .unity:
-            [.location, .listFiles, .gitStatus]
-        case .other:
+        case .unity, .other:
             [.location, .listFiles, .gitStatus]
         }
     }
@@ -59,23 +57,25 @@ final class ProjectProcessRunner: ObservableObject {
     @Published private(set) var status = "Ready"
     @Published private(set) var isRunning = false
 
+    var onOutput: ((String) -> Void)?
+    var onCompletion: ((Int32) -> Void)?
+
     private var process: Process?
     private var outputPipe: Pipe?
-    private var scopedRoot: URL?\n    var onOutput: ((String) -> Void)?\n    var onCompletion: ((Int32) -> Void)?
+    private var scopedRoot: URL?
 
     func run(_ command: ProjectCommand, for project: CODOProject, root: URL) {
         guard !isRunning else { return }
+
         let workingDirectory = root.standardizedFileURL
         guard FileManager.default.fileExists(atPath: workingDirectory.path) else {
-            output = "Project folder is no longer available. Re-import the project."
-            status = "Project unavailable"
+            fail("Project folder is no longer available. Re-import the project.")
             return
         }
 
         let needsScope = project.bookmarkData != nil
         if needsScope && !workingDirectory.startAccessingSecurityScopedResource() {
-            output = "CODO could not obtain access to this project folder. Re-import it and grant folder access again."
-            status = "Permission denied"
+            fail("CODO could not obtain access to this project folder. Re-import it and grant folder access again.")
             return
         }
 
@@ -88,6 +88,7 @@ final class ProjectProcessRunner: ObservableObject {
         task.standardError = pipe
 
         output = "$ \(command.displayCommand)\n\n"
+        onOutput?(output)
         status = "Starting…"
         scopedRoot = needsScope ? workingDirectory : nil
         outputPipe = pipe
@@ -99,9 +100,11 @@ final class ProjectProcessRunner: ObservableObject {
                 handle.readabilityHandler = nil
                 return
             }
-            let text = String(decoding: data, as: UTF8.self)
+            let chunk = String(decoding: data, as: UTF8.self)
             DispatchQueue.main.async {
-                self?.output.append(text)\n                self?.onOutput?(text)
+                guard let self else { return }
+                self.output.append(chunk)
+                self.onOutput?(chunk)
             }
         }
 
@@ -121,8 +124,7 @@ final class ProjectProcessRunner: ObservableObject {
             outputPipe = nil
             scopedRoot?.stopAccessingSecurityScopedResource()
             scopedRoot = nil
-            output.append("Failed to start process: \(error.localizedDescription)\n")
-            status = "Failed to start"\n            onOutput?("Failed to start process: \\(error.localizedDescription)\\n")\n            onCompletion?(-1)
+            fail("Failed to start process: \(error.localizedDescription)")
         }
     }
 
@@ -138,6 +140,13 @@ final class ProjectProcessRunner: ObservableObject {
         status = "Ready"
     }
 
+    private func fail(_ message: String) {
+        output = message + "\n"
+        status = "Failed"
+        onOutput?(output)
+        onCompletion?(-1)
+    }
+
     private func finish(exitCode: Int32) {
         outputPipe?.fileHandleForReading.readabilityHandler = nil
         outputPipe = nil
@@ -147,5 +156,6 @@ final class ProjectProcessRunner: ObservableObject {
         scopedRoot = nil
         status = exitCode == 0 ? "Completed · exit 0" : "Finished · exit \(exitCode)"
         if !output.hasSuffix("\n") { output.append("\n") }
+        onCompletion?(exitCode)
     }
 }
