@@ -122,6 +122,20 @@ final class ProjectStore: ObservableObject {
         } ?? nil
     }
 
+    func developerIntelligence(_ project: CODOProject) -> DeveloperIntelligenceReport? {
+        withProjectAccess(project) { root in
+            DeveloperIntelligenceService.analyze(root: root, projectName: project.name)
+        } ?? nil
+    }
+
+    func projectMemory(_ project: CODOProject) -> ProjectMemory {
+        ProjectMemoryStore.load(project: project)
+    }
+
+    func saveProjectMemory(_ memory: ProjectMemory) throws {
+        try ProjectMemoryStore.save(memory)
+    }
+
     func projectRootURL(for project: CODOProject) -> URL? {
         guard let bookmarkData = project.bookmarkData else {
             return URL(fileURLWithPath: project.path)
