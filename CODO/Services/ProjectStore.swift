@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftUI
 
@@ -14,14 +15,6 @@ final class ProjectStore: ObservableObject {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         storageURL = directory.appendingPathComponent("projects.json")
         load()
-        if projects.isEmpty {
-            projects = [
-                CODOProject(name: "SONARO", path: "~/Developer/SONARO", kind: .macOS),
-                CODOProject(name: "Perspective", path: "~/Developer/Perspective", kind: .unity),
-                CODOProject(name: "Arel", path: "~/Developer/Arel", kind: .iOS)
-            ]
-            save()
-        }
         selectedProjectID = projects.first?.id
     }
 
@@ -29,11 +22,53 @@ final class ProjectStore: ObservableObject {
         projects.first { $0.id == selectedProjectID }
     }
 
-    func addSampleProject() {
-        let project = CODOProject(name: "New Project", path: "~/Developer/New Project", kind: .macOS)
+    func importProject() {
+        let panel = NSOpenPanel()
+        panel.title = "Import Project"
+        panel.message = "Choose a project folder to add to your CODO workspace."
+        panel.prompt = "Import"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let resolvedURL = url.standardizedFileURL
+        guard !projects.contains(where: { URL(fileURLWithPath: $0.path).standardizedFileURL == resolvedURL }) else {
+            selectedProjectID = projects.first(where: {
+                URL(fileURLWithPath: $0.path).standardizedFileURL == resolvedURL
+            })?.id
+            return
+        }
+
+        let bookmark = try? resolvedURL.bookmarkData(
+            options: [.withSecurityScope],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        let project = CODOProject(
+            name: resolvedURL.lastPathComponent,
+            path: resolvedURL.path,
+            kind: ProjectKind.detect(at: resolvedURL),
+            bookmarkData: bookmark
+        )
         projects.insert(project, at: 0)
         selectedProjectID = project.id
         save()
+    }
+
+    func resolvedURL(for project: CODOProject) -> URL? {
+        guard let bookmarkData = project.bookmarkData else {
+            return URL(fileURLWithPath: project.path)
+        }
+        var isStale = false
+        return try? URL(
+            resolvingBookmarkData: bookmarkData,
+            options: [.withSecurityScope],
+            relativeTo: nil,
+            bookmarkDataIsStale: &isStale
+        )
     }
 
     private func load() {
