@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct DeveloperIntelligenceView: View {
+    let onStartTask: (String) -> Void
     private enum GitAction: String, Identifiable {
         case createBranch = "Create branch"
         case commit = "Commit staged changes"
@@ -286,6 +287,20 @@ struct DeveloperIntelligenceView: View {
                 .disabled(request.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             if !plan.isEmpty {
+                HStack {
+                    Text("\(plan.count) connected stages").font(.system(size: 10)).foregroundStyle(CODOTheme.secondaryText)
+                    Spacer()
+                    Button {
+                        let steps = plan.enumerated().map { index, step in
+                            String(index + 1) + ". " + step.title + ": " + step.detail
+                        }.joined(separator: "\n")
+                        let task = "User request: " + request + "\n\nFollow this staged workflow and report progress at each stage. Do not bypass file review or command approval:\n" + steps
+                        onStartTask(task)
+                    } label: {
+                        Label("Continue in AI Workspace", systemImage: "arrow.right")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
                 ForEach(plan.indices, id: \.self) { index in
                     let step = plan[index]
                     HStack(alignment: .top, spacing: 10) {
