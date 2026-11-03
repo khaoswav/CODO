@@ -83,11 +83,14 @@ struct DeveloperIntelligenceTests {
         let log = """
         Sources/App.swift:42:8: error: Cannot find type 'AudioUnit' in scope
         Sources/App.swift:91:8: error: Cannot find type 'AudioUnit' in scope
+        Sources/Keys.swift:2:3: error: API_KEY=super-secret-123
         Build failed.
         """
         let diagnostics = BuildFailureAnalyzer.extractDiagnostics(from: log)
-        try expect(diagnostics.count == 1, "Repeated compiler errors should normalize to one signature")
-        let merged = BuildFailureAnalyzer.merge(diagnostics + diagnostics, into: [])
+        try expect(diagnostics.count == 2, "Repeated compiler errors should normalize while distinct errors remain")
+        try expect(!diagnostics.contains(where: { $0.message.contains("super-secret-123") }),
+                   "Credential-like values must be redacted from build memory")
+        let merged = BuildFailureAnalyzer.merge([diagnostics[0], diagnostics[0]], into: [])
         try expect(merged.count == 1, "Repeated signatures should merge into one memory pattern")
         try expect(merged[0].occurrenceCount == 2, "Pattern occurrence count should increase")
     }
