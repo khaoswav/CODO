@@ -63,7 +63,7 @@ struct ProjectBrowserView: View {
                     Image(systemName: "chevron.left")
                 }
                 .buttonStyle(.borderless)
-                .disabled(currentDirectory?.standardizedFileURL == URL(fileURLWithPath: project.path).standardizedFileURL)
+                .disabled(currentDirectory?.resolvingSymlinksInPath().standardizedFileURL == (store.projectRootURL(for: project) ?? URL(fileURLWithPath: project.path)).resolvingSymlinksInPath().standardizedFileURL)
 
                 Image(systemName: "folder").foregroundStyle(CODOTheme.accent)
                 Text(relativePath(for: project))
@@ -178,14 +178,14 @@ struct ProjectBrowserView: View {
             previewText = nil
             return
         }
-        currentDirectory = URL(fileURLWithPath: project.path).standardizedFileURL
+        currentDirectory = store.projectRootURL(for: project)?.standardizedFileURL
         selectedFile = nil
         previewText = nil
     }
 
     private func navigateToParent(_ project: CODOProject) {
         guard let currentDirectory else { return }
-        let root = URL(fileURLWithPath: project.path).standardizedFileURL
+        let root = (store.projectRootURL(for: project) ?? URL(fileURLWithPath: project.path)).resolvingSymlinksInPath().standardizedFileURL
         let parent = currentDirectory.deletingLastPathComponent().standardizedFileURL
         guard parent.path == root.path || parent.path.hasPrefix(root.path + "/") else { return }
         self.currentDirectory = parent
