@@ -176,5 +176,5 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - [x] Rebase the PR #6 recovery regression onto the latest PR #5 head without merging either PR.
 - [x] Preserve completed Understand/Plan stage status and attempt-count assertions.
 - [x] Preserve restored stage-context and credential-redaction assertions.
-- [ ] Verify the rebased recovery regression in GitHub Actions Debug and Release.
+- [x] Verify the rebased recovery regression in GitHub Actions Debug and Release (run 41736781378: Debug and Release succeeded, including Developer Intelligence and Build Adapter E2E).
 - [ ] Full provider-backed Goose workflow and physical Mac validation remain deferred.
