@@ -385,6 +385,12 @@ enum BuildFailureAnalyzer {
         return results
     }
 
+    static func sanitizeLog(_ log: String) -> String {
+        log.components(separatedBy: .newlines)
+            .map { redactSecrets(in: $0) }
+            .joined(separator: "\n")
+    }
+
     private static func redactSecrets(in line: String) -> String {
         var value = line
         let patterns = [
