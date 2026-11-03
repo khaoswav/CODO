@@ -59,15 +59,18 @@ final class AgentOrchestratorStore: ObservableObject {
     }
 
     var activeWorkflow: AgentWorkflow? {
-        guard let id = activeWorkflowID,
-              let workflow = workflows.first(where: { $0.id == id }),
-              workflow.status == .running || workflow.status == .awaitingApproval else { return nil }
-        return workflow
+        guard let id = activeWorkflowID else { return nil }
+        return workflows.first { $0.id == id }
+    }
+
+    private var isWorkflowActive: Bool {
+        guard let status = activeWorkflow?.status else { return false }
+        return status == .running || status == .awaitingApproval
     }
 
     @discardableResult
     func start(project: CODOProject, request: String, plan: [IntelligencePlanStep]) -> UUID {
-        if let previous = activeWorkflowIndex, activeWorkflow != nil {
+        if let previous = activeWorkflowIndex, isWorkflowActive {
             workflows[previous].status = .failed
             workflows[previous].lastFailure = "Superseded by a newer workflow."
             if let running = workflows[previous].steps.firstIndex(where: {
@@ -103,7 +106,7 @@ final class AgentOrchestratorStore: ObservableObject {
     var currentStepTitle: String? { activeStep?.title }
 
     func completeCurrentAndAdvance(_ summary: String) {
-        guard activeWorkflow != nil else { return }
+        guard isWorkflowActive else { return }
         completeCurrentStep(summary)
         advanceToNextStep()
     }
@@ -115,7 +118,7 @@ final class AgentOrchestratorStore: ObservableObject {
     }
 
     func reviewCompleted(appliedCount: Int, rejectedCount: Int) {
-        guard activeWorkflow != nil, let workflowIndex = activeWorkflowIndex else { return }
+        guard isWorkflowActive, let workflowIndex = activeWorkflowIndex else { return }
         completeCurrentStep("\(appliedCount) file(s) applied, \(rejectedCount) rejected.")
         if appliedCount == 0 {
             for index in workflows[workflowIndex].steps.indices where workflows[workflowIndex].steps[index].status == .pending {
@@ -153,7 +156,7 @@ final class AgentOrchestratorStore: ObservableObject {
     }
 
     func buildFailed(_ summary: String) {
-        guard activeWorkflow != nil, let index = activeWorkflowIndex, let step = activeStepIndex else { return }
+        guard isWorkflowActive, let index = activeWorkflowIndex, let step = activeStepIndex else { return }
         workflows[index].steps[step].status = .failed
         workflows[index].steps[step].finishedAt = .now
         workflows[index].steps[step].resultSummary = summary
@@ -193,7 +196,7 @@ final class AgentOrchestratorStore: ObservableObject {
     }
 
     private var activeStep: AgentWorkflowStep? {
-        guard let workflow = activeWorkflow, let index = activeStepIndex else { return nil }
+        guard isWorkflowActive, let workflow = activeWorkflow, let index = activeStepIndex else { return nil }
         return workflow.steps[index]
     }
 
