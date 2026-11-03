@@ -21,6 +21,14 @@ jobs:
         configuration: [Debug, Release]
     steps:
       - uses: actions/checkout@v4
+      - name: Run Developer Intelligence tests
+        run: |
+          swiftc -parse-as-library \
+            CODO/Models/CODOProject.swift \
+            CODO/Services/DeveloperIntelligenceService.swift \
+            Tests/DeveloperIntelligenceTests.swift \
+            -o "$RUNNER_TEMP/codo-intelligence-tests"
+          "$RUNNER_TEMP/codo-intelligence-tests"
       - name: Build CODO
         run: |
           xcodebuild \
