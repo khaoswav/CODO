@@ -143,6 +143,24 @@ struct DeveloperIntelligenceTests {
         let merged = BuildFailureAnalyzer.merge([diagnostics[0], diagnostics[0]], into: [])
         try expect(merged.count == 1, "Repeated signatures should merge into one memory pattern")
         try expect(merged[0].occurrenceCount == 2, "Pattern occurrence count should increase")
+
+        let relocatedErrors = """
+        Sources/First.swift:14:2: error: Cannot find type 'AudioUnit' in scope
+        Modules/Audio/Second.swift:88:19: error: Cannot find type 'AudioUnit' in scope
+        Sources/Third.swift:3:1: error: Cannot find type 'MidiEvent' in scope
+        """
+        let recurring = BuildFailureAnalyzer.extractDiagnostics(from: relocatedErrors)
+        try expect(recurring.count == 2,
+                   "The same compiler error should group across different source paths and line numbers")
+        try expect(recurring.contains(where: { $0.signature.contains("audiounit") }) &&
+                   recurring.contains(where: { $0.signature.contains("midievent") }),
+                   "Fingerprints must preserve distinct missing symbol names")
+        let unityRelocations = """
+        Assets/Player.cs(8,4): error CS0246: The type or namespace name 'AudioMixer' could not be found
+        Packages/Runtime/Audio.cs(90,12): error CS0246: The type or namespace name 'AudioMixer' could not be found
+        """
+        try expect(BuildFailureAnalyzer.extractDiagnostics(from: unityRelocations).count == 1,
+                   "Unity compiler errors should group across files while preserving the compiler code")
     }
 
     @MainActor
