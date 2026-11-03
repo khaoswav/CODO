@@ -7,7 +7,8 @@ struct DeveloperIntelligenceTests {
         try testRelativeModuleResolution()
         try testExternalAndAmbiguousImportsAreExcluded()
         try testProjectScanBuildsGraphAndFindings()
-        print("PASS: 4 Developer Intelligence test groups")
+        try testBuildFailureFingerprinting()
+        print("PASS: 5 Developer Intelligence test groups")
     }
 
     static func testSwiftModuleResolution() throws {
@@ -66,6 +67,19 @@ struct DeveloperIntelligenceTests {
         try expect(report.files.count == 2, "Scanner should index both Swift files")
         try expect(report.graphEdges.count == 1, "Scanner should return one resolved local graph edge")
         try expect(report.findings.contains(where: { $0.title == "Pending code note" }), "Scanner should detect TODO notes")
+    }
+
+    static func testBuildFailureFingerprinting() throws {
+        let log = """
+        Sources/App.swift:42:8: error: Cannot find type 'AudioUnit' in scope
+        Sources/App.swift:91:8: error: Cannot find type 'AudioUnit' in scope
+        Build failed.
+        """
+        let diagnostics = BuildFailureAnalyzer.extractDiagnostics(from: log)
+        try expect(diagnostics.count == 1, "Repeated compiler errors should normalize to one signature")
+        let merged = BuildFailureAnalyzer.merge(diagnostics + diagnostics, into: [])
+        try expect(merged.count == 1, "Repeated signatures should merge into one memory pattern")
+        try expect(merged[0].occurrenceCount == 2, "Pattern occurrence count should increase")
     }
 
     static func expect(_ condition: @autoclosure () -> Bool, _ message: String) throws {
