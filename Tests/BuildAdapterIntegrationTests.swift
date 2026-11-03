@@ -178,7 +178,7 @@ struct BuildAdapterIntegrationTests {
             try? logHandle.close()
             let output = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
             throw HarnessFailure.assertion(
-                "Command timed out after \(Int(timeout)) seconds: \(command.display)\\n\(lastLines(output, count: 35))"
+                "Command timed out after \(Int(timeout)) seconds: \(command.display)\n\(lastLines(output, count: 35))"
             )
         }
         try? logHandle.close()
