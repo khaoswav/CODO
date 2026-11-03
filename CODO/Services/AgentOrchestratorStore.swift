@@ -112,7 +112,7 @@ final class AgentOrchestratorStore: ObservableObject {
     }
 
     func proposalReady() {
-        guard activeWorkflow != nil else { return }
+        guard isWorkflowActive else { return }
         completeCurrentStep("Goose returned a proposal. No files were changed automatically.")
         advanceToNextStep()
     }
@@ -146,7 +146,7 @@ final class AgentOrchestratorStore: ObservableObject {
     }
 
     func buildSucceeded() {
-        guard activeWorkflow != nil else { return }
+        guard isWorkflowActive else { return }
         completeCurrentStep("Approved build/test completed successfully.")
         advanceToNextStep()
         if activeStep != nil {
