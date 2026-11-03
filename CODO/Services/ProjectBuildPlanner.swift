@@ -19,8 +19,8 @@ enum ProjectBuildPlanner {
             let containerURL = root.appendingPathComponent(container)
             let sharedSchemes = containerURL
                 .appendingPathComponent("xcshareddata/xcschemes", isDirectory: true)
-            let schemeFile = (try? FileManager.default.contentsOfDirectory(at: sharedSchemes, includingPropertiesForKeys: nil))
-                ?.first(where: { $0.pathExtension == "xcscheme" })
+            let schemeFiles = try? FileManager.default.contentsOfDirectory(at: sharedSchemes, includingPropertiesForKeys: nil)
+            let schemeFile = schemeFiles?.first(where: { $0.pathExtension == "xcscheme" })
             let scheme = schemeFile?.deletingPathExtension().lastPathComponent
                 ?? containerURL.deletingPathExtension().lastPathComponent
             let configuration = command == .xcodeDebugBuild ? "Debug" : "Release"
