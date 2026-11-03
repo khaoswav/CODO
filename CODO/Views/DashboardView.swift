@@ -14,8 +14,11 @@ struct DashboardView: View {
                             .font(.system(size: 13)).foregroundStyle(CODOTheme.secondaryText)
                     }
                     Spacer()
+                    Button { store.importProject() } label: {
+                        Label("Import project", systemImage: "folder.badge.plus")
+                    }.buttonStyle(.bordered)
                     Button { selectedTab = .workspace } label: {
-                        Label("New task", systemImage: "plus").labelStyle(.titleAndIcon)
+                        Label("New task", systemImage: "plus")
                     }.buttonStyle(AccentButtonStyle())
                 }
                 HStack(spacing: 12) {
