@@ -81,7 +81,7 @@ enum DeveloperIntelligenceService {
 
         guard let enumerator = FileManager.default.enumerator(
             at: root,
-            includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey],
+            includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey, .isSymbolicLinkKey],
             options: [.skipsHiddenFiles]
         ) else {
             return DeveloperIntelligenceReport(projectName: projectName, generatedAt: .now,
@@ -92,21 +92,27 @@ enum DeveloperIntelligenceService {
         }
 
         while let url = enumerator.nextObject() as? URL {
-            let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey])
+            let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey, .isSymbolicLinkKey])
+            if values?.isSymbolicLink == true {
+                if values?.isDirectory == true { enumerator.skipDescendants() }
+                continue
+            }
             if values?.isDirectory == true {
                 if ignoredDirectories.contains(url.lastPathComponent) { enumerator.skipDescendants() }
                 continue
             }
 
             let relative = String(url.path.dropFirst(root.path.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            guard !relative.isEmpty, url.path.hasPrefix(root.path + "/") else { continue }
+            let canonicalFile = url.resolvingSymlinksInPath().standardizedFileURL
+            guard !relative.isEmpty, url.path.hasPrefix(root.path + "/"),
+                  canonicalFile.path.hasPrefix(root.path + "/") else { continue }
             let ext = url.pathExtension.lowercased()
             guard sourceExtensions.contains(ext) || configExtensions.contains(ext) else { continue }
             guard files.count < maximumFiles else { truncated = true; break }
 
             let size = values?.fileSize ?? 0
             guard size <= maximumFileBytes,
-                  let data = try? Data(contentsOf: url),
+                  let data = try? Data(contentsOf: canonicalFile),
                   let text = String(data: data, encoding: .utf8) else {
                 findings.append(IntelligenceFinding(severity: .info, title: "File skipped",
                     filePath: relative, detail: "File is larger than 256 KB or is not UTF-8 text."))
