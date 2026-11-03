@@ -57,8 +57,13 @@ final class GitWorkflowService: ObservableObject {
             statusMessage = "Invalid base branch."
             return
         }
-        run(executable: URL(fileURLWithPath: "/usr/bin/env"),
-            arguments: ["gh", "pr", "create", "--fill", "--base", base],
+        let ghCandidates = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bin/gh"]
+        guard let ghPath = ghCandidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
+            statusMessage = "GitHub CLI (gh) is not installed. Install it and authenticate with gh auth login."
+            return
+        }
+        run(executable: URL(fileURLWithPath: ghPath),
+            arguments: ["pr", "create", "--fill", "--base", base],
             project: project, root: root, approvalGranted: approvalGranted, updateSnapshot: false) { [weak self] _, code in
                 self?.statusMessage = code == 0 ? "Pull request created." : "Pull request creation failed. Check GitHub CLI authentication and output."
             }
