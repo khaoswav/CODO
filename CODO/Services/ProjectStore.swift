@@ -142,6 +142,18 @@ final class ProjectStore: ObservableObject {
         try ProjectMemoryStore.save(memory)
     }
 
+    func recordBuildFailure(_ project: CODOProject, log: String) {
+        var memory = ProjectMemoryStore.load(project: project)
+        let diagnostics = BuildFailureAnalyzer.extractDiagnostics(from: log)
+        let effective = diagnostics.isEmpty
+            ? [BuildDiagnostic(signature: "unclassified-build-failure", message: String(log.suffix(500)))]
+            : diagnostics
+        memory.buildFailurePatterns = BuildFailureAnalyzer.merge(effective, into: memory.buildFailurePatterns ?? [])
+        memory.decisions.append("Build failure recorded: " + effective[0].message)
+        memory.decisions = Array(memory.decisions.suffix(20))
+        try? ProjectMemoryStore.save(memory)
+    }
+
     func projectRootURL(for project: CODOProject) -> URL? {
         guard let bookmarkData = project.bookmarkData else {
             return URL(fileURLWithPath: project.path)
