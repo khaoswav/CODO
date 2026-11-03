@@ -53,7 +53,7 @@ enum ProjectCommand: String, CaseIterable, Identifiable {
         case .macOS, .iOS:
             [.location, .listFiles, .gitStatus, .xcodeTargets, .swiftVersion, .xcodeDebugBuild, .xcodeReleaseBuild]
         case .web:
-            [.location, .listFiles, .gitStatus, .nodeVersion, .npmVersion]
+            [.location, .listFiles, .gitStatus, .nodeVersion, .npmVersion, .webBuild, .webTest]
         case .unity:
             [.location, .listFiles, .gitStatus, .unityMacBuild]
         case .other:
