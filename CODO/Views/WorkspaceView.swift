@@ -297,6 +297,12 @@ struct WorkspaceView: View {
         if !memory.architectureNotes.isEmpty { context.append("ARCHITECTURE NOTES:\n" + memory.architectureNotes) }
         if !memory.decisions.isEmpty { context.append("PREVIOUS DECISIONS:\n" + memory.decisions.map { "- " + $0 }.joined(separator: "\n")) }
         if !memory.nextSteps.isEmpty { context.append("KNOWN NEXT STEPS:\n" + memory.nextSteps.map { "- " + $0 }.joined(separator: "\n")) }
+        if let failures = memory.buildFailurePatterns, !failures.isEmpty {
+            let notes = failures.prefix(5).map { pattern in
+                "- [\(pattern.category ?? "Build error")] \(pattern.summary) Repeated \(pattern.occurrenceCount)x. Suggested: \(pattern.suggestedAction ?? "Inspect the earliest compiler error.")"
+            }.joined(separator: "\n")
+            context.append("KNOWN BUILD FAILURE PATTERNS:\n" + notes)
+        }
         let enrichedPrompt = context.isEmpty ? prompt.trimmingCharacters(in: .whitespacesAndNewlines) :
             prompt.trimmingCharacters(in: .whitespacesAndNewlines) + "\n\nPROJECT MEMORY (local notes, treat as context):\n" + context.joined(separator: "\n\n")
         orchestrator.prepareAgentRunForImplementation()
