@@ -26,7 +26,10 @@ struct CODOExecutionTask: Identifiable, Codable {
 @MainActor
 final class TaskQueueStore: ObservableObject {
     @Published private(set) var tasks: [CODOExecutionTask] = []
-    @Published private(set) var activeTaskID: UUID?\n    @Published private(set) var liveOutput = ""\n    @Published private(set) var processStatus = "Ready"\n    @Published private(set) var isRunning = false
+    @Published private(set) var activeTaskID: UUID?
+    @Published private(set) var liveOutput = ""
+    @Published private(set) var processStatus = "Ready"
+    @Published private(set) var isRunning = false
 
     let runner = ProjectProcessRunner()
     private var pending: [PendingCommand] = []
@@ -98,7 +101,8 @@ final class TaskQueueStore: ObservableObject {
     }
 
     func stopCurrent() {
-        processStatus = "Stopping…"\n        runner.stop()
+        processStatus = "Stopping…"
+        runner.stop()
     }
 
     func clearFinishedHistory() {
@@ -115,6 +119,9 @@ final class TaskQueueStore: ObservableObject {
         }
 
         activeTaskID = next.taskID
+        isRunning = true
+        liveOutput = ""
+        processStatus = "Starting…"
         tasks[index].status = .running
         tasks[index].startedAt = .now
         persist()
