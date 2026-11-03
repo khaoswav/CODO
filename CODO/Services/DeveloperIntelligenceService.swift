@@ -256,10 +256,11 @@ enum DeveloperIntelligenceService {
 
     private static func importDependencies(in text: String, file: String, extension ext: String) -> [IntelligenceDependency] {
         let patterns: [(String, String)] = [
+            (#"(?m)^\s*import\s+(?:[^;\n]*?\s+from\s+)?['"]([^'"]+)['"]"#, "module"),
+            (#"(?m)\b(?:require|import)\s*\(\s*['"]([^'"]+)['"]\s*\)"#, "module"),
             (#"(?m)^\s*import\s+([A-Za-z_][A-Za-z0-9_.]*)"#, "import"),
             (#"(?m)^\s*#include\s*[<"]([^>"]+)[>"]"#, "include"),
-            (#"(?m)^\s*from\s+([A-Za-z_][A-Za-z0-9_.]*)\s+import"#, "import"),
-            (#"(?m)^\s*(?:const|let|var)\s+.*?from\s+['"]([^'"]+)['"]"#, "module")
+            (#"(?m)^\s*from\s+([A-Za-z_][A-Za-z0-9_.]*)\s+import"#, "import")
         ]
         var result: [IntelligenceDependency] = []
         for (pattern, kind) in patterns {
