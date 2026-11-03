@@ -98,9 +98,22 @@ final class AgentOrchestratorStore: ObservableObject {
     }
 
     func reviewCompleted(appliedCount: Int, rejectedCount: Int) {
-        guard activeWorkflowID != nil else { return }
+        guard let workflowIndex = activeWorkflowIndex else { return }
         completeCurrentStep("\(appliedCount) file(s) applied, \(rejectedCount) rejected.")
-        advanceToNextStep()
+        if appliedCount == 0 {
+            for index in workflows[workflowIndex].steps.indices where workflows[workflowIndex].steps[index].status == .pending {
+                workflows[workflowIndex].steps[index].status = .succeeded
+                workflows[workflowIndex].steps[index].finishedAt = .now
+                workflows[workflowIndex].steps[index].resultSummary = "Skipped because no changes were applied."
+            }
+            finishIfComplete()
+        } else {
+            advanceToNextStep()
+        }
+    }
+
+    func failCurrentStep(_ summary: String) {
+        buildFailed(summary)
     }
 
     func approveCurrentStep() {
