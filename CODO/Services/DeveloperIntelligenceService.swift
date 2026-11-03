@@ -8,7 +8,7 @@ struct IntelligenceFile: Identifiable, Codable {
     var id: String { path }
 }
 
-struct IntelligenceDependency: Identifiable, Codable {
+struct IntelligenceDependency: Identifiable, Codable, Hashable {
     let source: String
     let target: String
     let kind: String
