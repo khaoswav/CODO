@@ -46,7 +46,7 @@ enum ProjectKind: String, Codable, CaseIterable, Identifiable {
         if let projectBundle = contents.first(where: { $0.lowercased().hasSuffix(".xcodeproj") }),
            let projectData = try? String(contentsOf: url.appendingPathComponent(projectBundle).appendingPathComponent("project.pbxproj"), encoding: .utf8) {
             if projectData.contains("SDKROOT = macosx") || projectData.contains("SUPPORTED_PLATFORMS = macosx") { return .macOS }
-            if projectData.contains("SDKROOT = iphoneos") || projectData.contains("SUPPORTED_PLATFORMS = \\"iphoneos") { return .iOS }
+            if projectData.contains("SDKROOT = iphoneos") || projectData.contains("SUPPORTED_PLATFORMS = \"iphoneos") { return .iOS }
             return .other
         }
         if names.contains(where: { $0.hasSuffix(".xcworkspace") }) { return .other }
