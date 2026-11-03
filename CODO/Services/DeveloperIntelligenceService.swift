@@ -38,7 +38,7 @@ enum IntelligenceGraphLayout {
         limit: Int = 32
     ) -> [IntelligenceGraphNode] {
         guard limit > 0, !files.isEmpty, !edges.isEmpty else { return [] }
-        let available = Set(files.map(\\.path))
+        let available = Set(files.map(\.path))
         let validEdges = edges.filter {
             available.contains($0.sourceFile) && available.contains($0.targetFile) &&
             $0.sourceFile != $0.targetFile
