@@ -87,7 +87,7 @@ struct CODOView: View {
             HStack {
                 Text("PROJECTS").font(.system(size: 10, weight: .bold)).tracking(1.2).foregroundStyle(CODOTheme.mutedText)
                 Spacer()
-                Button { store.addSampleProject() } label: {
+                Button { store.importProject() } label: {
                     Image(systemName: "plus").font(.system(size: 11, weight: .semibold)).foregroundStyle(CODOTheme.secondaryText)
                 }.buttonStyle(.plain)
             }
