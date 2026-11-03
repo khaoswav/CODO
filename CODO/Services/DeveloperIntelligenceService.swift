@@ -198,6 +198,19 @@ enum DeveloperIntelligenceService {
         )
     }
 
+    private static func normalizeRelativePath(_ path: String) -> String {
+        var components: [String] = []
+        for component in path.split(separator: "/").map(String.init) {
+            if component.isEmpty || component == "." { continue }
+            if component == ".." {
+                if !components.isEmpty { components.removeLast() }
+            } else {
+                components.append(component)
+            }
+        }
+        return components.joined(separator: "/")
+    }
+
     static func resolveGraph(files: [IntelligenceFile], dependencies: [IntelligenceDependency]) -> [IntelligenceGraphEdge] {
         let paths = Set(files.map(\.path))
         let byStem = Dictionary(grouping: files, by: { URL(fileURLWithPath: $0.path).deletingPathExtension().lastPathComponent.lowercased() })
@@ -209,9 +222,9 @@ enum DeveloperIntelligenceService {
             var candidates: [String] = []
 
             if rawTarget.hasPrefix(".") || rawTarget.hasPrefix("/") {
-                let base = URL(fileURLWithPath: dependency.source).deletingLastPathComponent()
-                    .appendingPathComponent(rawTarget).standardizedFileURL.path
-                let normalized = base.hasPrefix("/") ? String(base.dropFirst()) : base
+                let sourceDirectory = (dependency.source as NSString).deletingLastPathComponent
+                let combined = (sourceDirectory as NSString).appendingPathComponent(rawTarget)
+                let normalized = normalizeRelativePath(combined)
                 let extensions = ["", ".swift", ".js", ".jsx", ".ts", ".tsx", ".m", ".mm", ".h", ".hpp", ".c", ".cc", ".cpp", ".cs", ".py", ".rs", ".go", ".java", ".kt"]
                 candidates.append(contentsOf: extensions.map { normalized + $0 })
                 candidates.append(contentsOf: extensions.dropFirst().map { normalized + "/index" + $0 })
