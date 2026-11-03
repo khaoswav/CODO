@@ -323,11 +323,11 @@ enum BuildFailureAnalyzer {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             let lower = trimmed.lowercased()
             let isDiagnostic = lower.contains("error:") || lower.contains("fatal error:") ||
-                lower.range(of: #"\\berror\\s+cs[0-9]+\\b"#, options: .regularExpression) != nil ||
-                lower.range(of: #"\\bmsb[0-9]+\\b"#, options: .regularExpression) != nil
+                lower.range(of: #"\berror\s+cs[0-9]+\b"#, options: .regularExpression) != nil ||
+                lower.range(of: #"\bmsb[0-9]+\b"#, options: .regularExpression) != nil
             guard isDiagnostic else { continue }
             var normalized = trimmed
-            normalized = normalized.replacingOccurrences(of: #":\\d+:\\d+:"#,
+            normalized = normalized.replacingOccurrences(of: #":\d+:\d+:"#,
                 with: ":<line>:<column>:", options: .regularExpression)
             normalized = normalized.replacingOccurrences(of: #"0x[0-9a-fA-F]+"#,
                 with: "<address>", options: .regularExpression)
