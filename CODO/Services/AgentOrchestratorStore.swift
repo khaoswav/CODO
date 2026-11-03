@@ -100,12 +100,10 @@ final class AgentOrchestratorStore: ObservableObject {
             projectName: project.name,
             request: request,
             steps: steps,
-            status: .running
+            status: .awaitingApproval
         )
         if !workflow.steps.isEmpty {
-            workflow.steps[0].status = .running
-            workflow.steps[0].startedAt = .now
-            workflow.steps[0].attemptCount = 1
+            workflow.steps[0].status = .awaitingApproval
         }
         workflows.insert(workflow, at: 0)
         activeWorkflowID = workflow.id
