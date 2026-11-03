@@ -45,8 +45,6 @@ struct WorkspaceView: View {
                     root: root,
                     onBuildFailure: { log in
                         showPatchReview = false
-                        orchestrator.resumeForFix()
-                        store.recordBuildFailure(project, log: log)
                         guard fixAttempts < 2 else {
                             patchError = "The automatic fix limit (2 attempts) has been reached. Review the build log and start a new task if needed."
                             return
