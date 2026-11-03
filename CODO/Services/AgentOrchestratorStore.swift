@@ -170,7 +170,7 @@ final class AgentOrchestratorStore: ObservableObject {
         // have an activeWorkflowID. Re-select the newest failed workflow when needed.
         guard let workflowIndex = activeWorkflowIndex ?? workflows.firstIndex(where: {
             $0.status == .failed && $0.steps.contains(where: {
-                $0.title.localizedCaseInsensitiveContains("Implement")
+                $0.title.localizedCaseInsensitiveContains("Implement the change")
             })
         }) else { return }
         activeWorkflowID = workflows[workflowIndex].id
