@@ -24,7 +24,7 @@ struct BuildAdapterIntegrationTests {
             to: unityRoot.appendingPathComponent("Packages/manifest.json"),
             atomically: true, encoding: .utf8
         )
-        try expect(CODOProject.detect(at: unityRoot) == .unity,
+        try expect(ProjectKind.detect(at: unityRoot) == .unity,
                    "A Unity Assets + ProjectSettings layout must be detected as Unity")
         let unityAnalysis = ProjectAnalyzer.analyze(at: unityRoot, kind: .unity)
         try expect(unityAnalysis.metadata.contains(where: {
@@ -35,7 +35,7 @@ struct BuildAdapterIntegrationTests {
         defer { try? FileManager.default.removeItem(at: webRoot) }
         try "{\"name\":\"codo-web-fixture\",\"scripts\":{\"build\":\"node build.js\"}}"
             .write(to: webRoot.appendingPathComponent("package.json"), atomically: true, encoding: .utf8)
-        try expect(CODOProject.detect(at: webRoot) == .web,
+        try expect(ProjectKind.detect(at: webRoot) == .web,
                    "A package.json project must be detected as web")
         let webAnalysis = ProjectAnalyzer.analyze(at: webRoot, kind: .web)
         try expect(webAnalysis.metadata.contains(where: { $0.label == "Package name" && $0.value == "codo-web-fixture" }),
