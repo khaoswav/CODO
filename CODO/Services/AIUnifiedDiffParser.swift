@@ -25,6 +25,10 @@ enum AIUnifiedDiffParser {
         guard output.utf8.count <= maximumDiffSize else {
             throw ProjectFileChangeError.fileTooLarge
         }
+        let didStart = project.bookmarkData != nil ? root.startAccessingSecurityScopedResource() : false
+        if project.bookmarkData != nil && !didStart { throw ProjectFileChangeError.accessDenied }
+        defer { if didStart { root.stopAccessingSecurityScopedResource() } }
+
         let lines = output.components(separatedBy: .newlines)
         var changes: [ProjectFileChange] = []
         var index = 0
