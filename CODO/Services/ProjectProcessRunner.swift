@@ -55,7 +55,7 @@ enum ProjectCommand: String, CaseIterable, Identifiable {
 final class ProjectProcessRunner: ObservableObject {
     @Published private(set) var output = ""
     @Published private(set) var status = "Ready"
-    @Published private(set) var isRunning = false
+    @Published private(set) var isRunning = false\n    private(set) var wasStopped = false
 
     var onOutput: ((String) -> Void)?
     var onCompletion: ((Int32) -> Void)?
@@ -67,7 +67,7 @@ final class ProjectProcessRunner: ObservableObject {
     func run(_ command: ProjectCommand, for project: CODOProject, root: URL) {
         guard !isRunning else { return }
 
-        let workingDirectory = root.standardizedFileURL
+        wasStopped = false\n        let workingDirectory = root.standardizedFileURL
         guard FileManager.default.fileExists(atPath: workingDirectory.path) else {
             fail("Project folder is no longer available. Re-import the project.")
             return
