@@ -67,7 +67,8 @@ final class ProjectStore: ObservableObject {
     func files(in directory: URL, for project: CODOProject) -> [CODOProjectFile] {
         withProjectAccess(project) { root in
             let target = directory.resolvingSymlinksInPath().standardizedFileURL
-            let canonicalRoot = root.resolvingSymlinksInPath().standardizedFileURL\n            guard target.path == canonicalRoot.path || target.path.hasPrefix(canonicalRoot.path + "/") else { return [] }
+            let canonicalRoot = root.resolvingSymlinksInPath().standardizedFileURL
+            guard target.path == canonicalRoot.path || target.path.hasPrefix(canonicalRoot.path + "/") else { return [] }
             guard let urls = try? FileManager.default.contentsOfDirectory(
                 at: target,
                 includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey, .isHiddenKey],
@@ -92,7 +93,8 @@ final class ProjectStore: ObservableObject {
 
     func textPreview(of file: URL, in project: CODOProject) -> String? {
         withProjectAccess(project) { root in
-            let target = file.resolvingSymlinksInPath().standardizedFileURL\n            let canonicalRoot = root.resolvingSymlinksInPath().standardizedFileURL
+            let target = file.resolvingSymlinksInPath().standardizedFileURL
+            let canonicalRoot = root.resolvingSymlinksInPath().standardizedFileURL
             guard target.path.hasPrefix(canonicalRoot.path + "/"),
                   !FileManager.default.directoryExists(at: target),
                   textExtensions.contains(target.pathExtension.lowercased()),
