@@ -177,4 +177,17 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - [x] Preserve completed Understand/Plan stage status and attempt-count assertions.
 - [x] Preserve restored stage-context and credential-redaction assertions.
 - [x] Verify the rebased recovery regression in GitHub Actions Debug and Release (run 41736781378: Debug and Release succeeded, including Developer Intelligence and Build Adapter E2E).
+- [x] Final PR #6 head CI run 41737150334 passed both Debug and Release, including Developer Intelligence and Build Adapter E2E.
 - [ ] Full provider-backed Goose workflow and physical Mac validation remain deferred.
+
+
+## Goose CLI process integration (next-stage validation)
+- [x] Add injectable Goose executable and API-key provider seams so process behavior can be tested without reading or writing the user's Keychain.
+- [x] Add a deterministic fake-CLI integration fixture that verifies provider/model/API-key environment handoff and the task prompt.
+- [x] Verify that the approval gate prevents process launch and missing provider credentials fail closed.
+- [x] Add a process cancellation fixture that verifies termination completion and running-state cleanup.
+- [x] Add the Goose CLI integration executable to the Debug/Release macOS CI matrix.
+- [ ] Validate the new integration suite in GitHub Actions Debug and Release.
+- [ ] Run a real provider-backed Goose task on the user's Mac. CI fake-CLI coverage does not prove provider authentication, model availability or live Goose behavior.
+- [ ] Physically launch CODO and validate the complete UI workflow on the user's Mac.
+- [ ] PR remains open and draft. No PR has been merged.
