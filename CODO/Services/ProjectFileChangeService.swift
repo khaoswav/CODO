@@ -83,7 +83,7 @@ enum ProjectFileChangeService {
             .appendingPathComponent("CODO/Backups/\(project.id.uuidString)", isDirectory: true)
         do {
             try FileManager.default.createDirectory(at: backupRoot, withIntermediateDirectories: true)
-            let backupName = "\(Int(Date().timeIntervalSince1970))-\(canonicalFile.lastPathComponent).bak"
+            let backupName = "\(UUID().uuidString)-\(canonicalFile.lastPathComponent).bak"
             try currentData.write(to: backupRoot.appendingPathComponent(backupName), options: .atomic)
             try Data(change.proposedText.utf8).write(to: canonicalFile, options: .atomic)
         } catch {
