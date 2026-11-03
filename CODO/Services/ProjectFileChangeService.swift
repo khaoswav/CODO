@@ -42,6 +42,7 @@ enum ProjectFileChangeService {
         if project.bookmarkData != nil && !didStart { throw ProjectFileChangeError.accessDenied }
         defer { if didStart { root.stopAccessingSecurityScopedResource() } }
 
+        guard proposedText.utf8.count <= maximumSize else { throw ProjectFileChangeError.fileTooLarge }
         let canonicalRoot = root.resolvingSymlinksInPath().standardizedFileURL
         let canonicalFile = file.resolvingSymlinksInPath().standardizedFileURL
         guard canonicalFile.path.hasPrefix(canonicalRoot.path + "/") else { throw ProjectFileChangeError.outsideProject }
