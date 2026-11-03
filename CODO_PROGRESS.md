@@ -4,7 +4,7 @@
 Native macOS development command center. Tagline: **Think. Code. Create.**
 
 ## Design direction
-Apple-native macOS interaction patterns, SwiftUI, SF Symbols, system typography, clear hierarchy, restrained surfaces, native folder selection and keyboard commands. Dark graphite with a violet accent is the initial appearance.
+Apple-native macOS interaction patterns, SwiftUI, SF Symbols, system typography, semantic AppKit colors, native folder selection and keyboard commands. The interface follows the user's system light/dark appearance; violet is the restrained brand accent.
 
 ## Current milestone
 Milestone 1: Native app foundation and project browsing.
@@ -12,7 +12,8 @@ Milestone 1: Native app foundation and project browsing.
 ## Completed in repository
 - [x] Repository initialized
 - [x] Native SwiftUI app entry point and Xcode project
-- [x] Dark design tokens and reusable panel/button components
+- [x] Adaptive system semantic colors for light and dark appearance
+- [x] Reusable panel and button components
 - [x] Project model and local JSON persistence
 - [x] Workspace navigation and project rail
 - [x] Dashboard, AI Workspace placeholder, Terminal and Activity placeholders
@@ -22,15 +23,16 @@ Milestone 1: Native app foundation and project browsing.
 - [x] Project type detection for common Xcode, Unity and web folders
 - [x] Security-scoped bookmark metadata stored with imported project records
 - [x] Project import actions in the project rail and Dashboard
-- [x] Project Files workspace
-- [x] Folder navigation constrained to the imported project root
+- [x] Project Files workspace and folder navigation
 - [x] Read-only text previews for supported source/config files up to 256 KB
-- [x] Hidden files omitted from the browser by default
-- [x] File browsing reacquires security-scoped access for each operation
+- [x] Hidden files omitted by default
+- [x] Security-scoped access reacquired for project file operations
+- [x] Canonical path checks to block symlink escapes outside the project root
+- [x] Resolve moved project folders through their stored bookmarks
 
 ## In progress
 - [ ] Confirm Debug and Release CI on latest commit
-- [ ] Add unit tests for project type detection and file access boundaries
+- [ ] Add automated tests for project type detection and file access boundaries
 - [ ] Improve macOS versus iOS Xcode project classification
 - [ ] Add safe file editing and change review after the execution engine exists
 
@@ -46,7 +48,7 @@ Milestone 1: Native app foundation and project browsing.
 
 ## Validation
 - A previous source-path-fix revision passed a macOS Debug CI build.
-- Latest file-browser changes require fresh Debug and Release CI confirmation.
+- Current file-browser and adaptive-theme changes require fresh Debug and Release CI confirmation.
 - Local physical Mac launch and visual validation have not been performed.
 
 ## Next task
