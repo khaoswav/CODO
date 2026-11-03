@@ -86,13 +86,12 @@ final class AgentOrchestratorStore: ObservableObject {
         return workflow.id
     }
 
-    func prepareAgentRunForImplementation() {
+    var currentStepTitle: String? { activeStep?.title }
+
+    func completeCurrentAndAdvance(_ summary: String) {
         guard activeWorkflowID != nil else { return }
-        while let step = activeStep,
-              !step.title.localizedCaseInsensitiveContains("Implement") {
-            completeCurrentStep(step.title + " completed.")
-            advanceToNextStep()
-        }
+        completeCurrentStep(summary)
+        advanceToNextStep()
     }
 
     func proposalReady() {
