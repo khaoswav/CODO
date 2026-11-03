@@ -4,10 +4,11 @@ struct TerminalView: View {
     @EnvironmentObject private var store: ProjectStore
     @EnvironmentObject private var taskQueue: TaskQueueStore
     @State private var selectedCommand: ProjectCommand = .location
+    @State private var showApproval = false
 
     private var project: CODOProject? { store.selectedProject }
     private var availableCommands: [ProjectCommand] {
-        ProjectCommand.available(for: project?.kind ?? .other)
+        ProjectCommand.available(for: project?.kind ?? .other) + ProjectCommand.buildCommands(for: project?.kind ?? .other)
     }
 
     var body: some View {
@@ -30,6 +31,12 @@ struct TerminalView: View {
         .background(CODOTheme.background)
         .onChange(of: project?.kind) { _, _ in
             selectedCommand = availableCommands.first ?? .location
+        }
+        .alert("Approve project build?", isPresented: $showApproval) {
+            Button("Cancel", role: .cancel) { }
+            Button("Approve and run") { enqueueSelectedCommand(approved: true) }
+        } message: {
+            Text(approvalDescription)
         }
     }
 
@@ -76,10 +83,13 @@ struct TerminalView: View {
             Spacer()
 
             Button {
-                guard let root = store.projectRootURL(for: project) else { return }
-                taskQueue.enqueue(selectedCommand, project: project, root: root)
+                if selectedCommand.requiresApproval {
+                    showApproval = true
+                } else {
+                    enqueueSelectedCommand(approved: false)
+                }
             } label: {
-                Label("Queue task", systemImage: "plus")
+                Label(selectedCommand.requiresApproval ? "Review & run" : "Queue task", systemImage: selectedCommand.requiresApproval ? "shield.checkered" : "plus")
             }
             .buttonStyle(AccentButtonStyle())
 
@@ -93,6 +103,16 @@ struct TerminalView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+    }
+
+
+    private var approvalDescription: String {
+        "CODO will run the selected build or test command inside the imported project folder. This may create or modify build output and generated files. Review the command before approving. No arbitrary shell command is accepted."
+    }
+
+    private func enqueueSelectedCommand(approved: Bool) {
+        guard let project, let root = store.projectRootURL(for: project) else { return }
+        taskQueue.enqueue(selectedCommand, project: project, root: root, approvalGranted: approved)
     }
 
     private var queueSummary: some View {
