@@ -80,7 +80,10 @@ enum DeveloperIntelligenceService {
     private static let maximumFileBytes = 256 * 1024
 
     static func analyze(root: URL, projectName: String) -> DeveloperIntelligenceReport {
-        let root = root.resolvingSymlinksInPath().standardizedFileURL
+        var rootPath = root.resolvingSymlinksInPath().standardizedFileURL.path
+        if rootPath.count > 1 && rootPath.hasSuffix("/") { rootPath.removeLast() }
+        let rootURL = URL(fileURLWithPath: rootPath, isDirectory: true)
+        let rootPrefix = rootPath == "/" ? "/" : rootPath + "/"
         var files: [IntelligenceFile] = []
         var dependencies: [IntelligenceDependency] = []
         var findings: [IntelligenceFinding] = []
@@ -89,7 +92,7 @@ enum DeveloperIntelligenceService {
         var truncated = false
 
         guard let enumerator = FileManager.default.enumerator(
-            at: root,
+            at: rootURL,
             includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey, .isSymbolicLinkKey],
             options: [.skipsHiddenFiles]
         ) else {
@@ -111,10 +114,10 @@ enum DeveloperIntelligenceService {
                 continue
             }
 
-            let relative = String(url.path.dropFirst(root.path.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            let relative = String(url.path.dropFirst(rootPath.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             let canonicalFile = url.resolvingSymlinksInPath().standardizedFileURL
-            guard !relative.isEmpty, url.path.hasPrefix(root.path + "/"),
-                  canonicalFile.path.hasPrefix(root.path + "/") else { continue }
+            guard !relative.isEmpty, url.path.hasPrefix(rootPrefix),
+                  canonicalFile.path.hasPrefix(rootPrefix) else { continue }
             let ext = url.pathExtension.lowercased()
             guard sourceExtensions.contains(ext) || configExtensions.contains(ext) else { continue }
             guard files.count < maximumFiles else { truncated = true; break }
