@@ -110,7 +110,7 @@ struct GooseAgentIntegrationTests {
 
     static func makeTemporaryDirectory(_ prefix: String) throws -> URL {
         let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(prefix)-\\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("\(prefix)-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         return root
     }
