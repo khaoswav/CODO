@@ -92,7 +92,9 @@ struct WorkspaceView: View {
             Text(patchError ?? "")
         }
         .alert("Allow Goose to analyze this project?", isPresented: $showRunApproval) {
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) {
+                orchestrator.failCurrentStep("Agent run cancelled by the user.")
+            }
             Button("Approve analysis") { startAnalysis() }
         } message: {
             Text("Goose will receive your task and access the selected project folder. It is instructed to inspect files and return proposed changes only. Do not treat the agent's instructions as a security boundary; review all output before applying changes.")
@@ -284,6 +286,16 @@ struct WorkspaceView: View {
 
     private func startAnalysis() {
         guard let project, let root = store.projectRootURL(for: project) else { return }
+        guard agent.isConfigured else {
+            patchError = "Goose provider API key is not configured. Save a key in Goose settings before starting this workflow."
+            orchestrator.failCurrentStep("Goose provider is not configured.")
+            return
+        }
+        guard agent.locateGoose() != nil else {
+            patchError = "Goose CLI was not found. Install Goose before starting this workflow."
+            orchestrator.failCurrentStep("Goose CLI is not installed.")
+            return
+        }
         agent.configuration = GooseConfiguration(provider: provider, model: model)
         proposedChanges = []
         let retryingFailedBuild = isFixRequest
