@@ -65,17 +65,15 @@ struct DeveloperIntelligenceTests {
         try "struct AudioEngine {}\n".write(
             to: root.appendingPathComponent("AudioEngine.swift"), atomically: true, encoding: .utf8
         )
-        let web = root.appendingPathComponent("Web/src", isDirectory: true)
-        try FileManager.default.createDirectory(at: web.appendingPathComponent("lib", isDirectory: true), withIntermediateDirectories: true)
-        try "import { helper } from \"./lib/helpers\";\n".write(
-            to: web.appendingPathComponent("main.ts"), atomically: true, encoding: .utf8
+        try "import { helper } from \"./helpers\";\n".write(
+            to: root.appendingPathComponent("main.ts"), atomically: true, encoding: .utf8
         )
         try "export const helper = true;\n".write(
-            to: web.appendingPathComponent("lib/helpers.ts"), atomically: true, encoding: .utf8
+            to: root.appendingPathComponent("helpers.ts"), atomically: true, encoding: .utf8
         )
         let report = DeveloperIntelligenceService.analyze(root: root, projectName: "Fixture")
         print("SCAN FILES: " + report.files.map(\.path).joined(separator: ", "))
-        try expect(report.files.count == 4, "Scanner should index Swift and TypeScript source files, found \\(report.files.count)")
+        try expect(report.files.count == 4, "Scanner should index Swift and TypeScript source files, found \(report.files.count)")
         try expect(report.graphEdges.count == 2, "Scanner should return resolved Swift and TypeScript local graph edges")
         try expect(report.findings.contains(where: { $0.title == "Pending code note" }), "Scanner should detect TODO notes")
     }
