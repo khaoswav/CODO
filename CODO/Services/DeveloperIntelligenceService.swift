@@ -140,6 +140,19 @@ enum DeveloperIntelligenceService {
                     findings.append(IntelligenceFinding(severity: .info, title: "Debug output",
                         filePath: relative, line: number, detail: "Check whether this diagnostic output should remain in production code."))
                 }
+                if trimmed.contains("DispatchQueue.main.sync") {
+                    findings.append(IntelligenceFinding(severity: .critical, title: "Potential main-thread deadlock",
+                        filePath: relative, line: number, detail: "Synchronous dispatch onto the main queue can deadlock when called from the main thread."))
+                }
+                if trimmed.contains("Data(contentsOf:") || trimmed.contains("String(contentsOf:") ||
+                    trimmed.contains("contentsOfDirectory(") || trimmed.contains("readDataToEndOfFile()") {
+                    findings.append(IntelligenceFinding(severity: .warning, title: "Potential synchronous I/O",
+                        filePath: relative, line: number, detail: "Check whether this file or directory operation runs on the main thread or blocks an interactive path."))
+                }
+                if trimmed.contains("Thread.sleep") || trimmed.contains("sleep(") {
+                    findings.append(IntelligenceFinding(severity: .warning, title: "Blocking sleep call",
+                        filePath: relative, line: number, detail: "Sleeping a thread can stall a worker or the UI. Prefer asynchronous scheduling where appropriate."))
+                }
                 if looksLikeEmbeddedSecret(trimmed) {
                     findings.append(IntelligenceFinding(severity: .critical, title: "Possible embedded credential",
                         filePath: relative, line: number, detail: "A credential-like pattern was detected. The value is intentionally not displayed. Rotate it if it is real and move it to secure configuration."))
@@ -192,8 +205,16 @@ enum DeveloperIntelligenceService {
             }
         }
 
-        if ext == "swift" {
-            // Swift Package.swift imports are captured above; manifest package URLs are summarized separately.
+        if file == "package.json" || file == "Packages/manifest.json" {
+            if let data = text.data(using: .utf8),
+               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                for key in ["dependencies", "devDependencies"] {
+                    let packages = object[key] as? [String: Any] ?? [:]
+                    for name in packages.keys.sorted() {
+                        result.append(IntelligenceDependency(source: file, target: name, kind: "package"))
+                    }
+                }
+            }
         }
         return result
     }
@@ -214,6 +235,7 @@ enum DeveloperIntelligenceService {
 struct ProjectMemory: Codable {
     var projectID: UUID
     var projectName: String
+    var lastArchitectureSummary: String? = nil
     var purpose: String = ""
     var architectureNotes: String = ""
     var decisions: [String] = []
