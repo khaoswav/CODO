@@ -16,10 +16,16 @@ enum ProjectBuildPlanner {
             guard let container = workspace ?? projectFile else { return nil }
             let isWorkspace = container.hasSuffix(".xcworkspace")
             let flag = isWorkspace ? "-workspace" : "-project"
-            let scheme = URL(fileURLWithPath: container).deletingPathExtension().lastPathComponent
+            let containerURL = root.appendingPathComponent(container)
+            let sharedSchemes = containerURL
+                .appendingPathComponent("xcshareddata/xcschemes", isDirectory: true)
+            let schemeFile = (try? FileManager.default.contentsOfDirectory(at: sharedSchemes, includingPropertiesForKeys: nil))
+                ?.first(where: { $0.pathExtension == "xcscheme" })
+            let scheme = schemeFile?.deletingPathExtension().lastPathComponent
+                ?? containerURL.deletingPathExtension().lastPathComponent
             let configuration = command == .xcodeDebugBuild ? "Debug" : "Release"
             var args = [flag, root.appendingPathComponent(container).path, "-scheme", scheme,
-                        "-configuration", configuration, "build"]
+                        "-configuration", configuration, "CODE_SIGNING_ALLOWED=NO", "build"]
             if project.kind == .iOS {
                 args.insert(contentsOf: ["-destination", "generic/platform=iOS Simulator"], at: args.count - 1)
             }
