@@ -41,15 +41,26 @@ Apple-native SwiftUI, system light/dark appearance, semantic AppKit colors, nati
 - [ ] Add Unity editor discovery beyond the default Unity Hub installation path
 - [ ] Support npm/yarn/pnpm package manager detection and non-watch test execution
 - [ ] Add true unified diff view and file restore from backups
-- [ ] Connect Goose after permission and execution lifecycle are validated
+- [x] Goose CLI process adapter with live output and cancellation
+- [x] Provider/model preferences persisted locally and API key stored in macOS Keychain
+- [x] AI Workspace task submission with explicit per-run approval
+- [x] AI agent output and completion recorded in persistent Activity history
+- [ ] Parse Goose unified diff proposals into structured reviewable file changes
+- [ ] Apply approved AI patches through ProjectFileChangeService with backup and stale-file checks
+- [ ] Add build/test failure feedback loop and bounded agent retry workflow
 
 ## Security boundaries
 Current command execution uses fixed, typed command cases and Foundation Process with explicit executable paths and argument arrays. No arbitrary shell string is accepted. Build/test commands require a per-run user approval. File writes are limited to supported text files inside the imported project root, are reviewed before apply, are backed up under Application Support/CODO/Backups, and are rejected if the original file changed after review. Destructive commands, OS-level changes, and autonomous broad file access are not enabled.
 
+## Goose Integration validation
+- Goose CLI adapter, provider settings UI, Keychain storage, approval prompt, live output, cancellation and Activity history are implemented.
+- Goose is instructed to operate in analysis/proposal-only mode. This prompt is not a hard sandbox; the CLI and its configured extensions may still have capabilities. Do not treat it as an enforced read-only boundary.
+- The current milestone does not yet parse unified diffs into the file review sheet or apply AI-generated patches. Existing manual file review/apply remains separate.
+
 ## Validation
 - Task Engine milestone CI: Debug and Release succeeded on commit b5c29334f5884adf3365529c7a11e1b95f565f75.
 - An earlier Command Approval + Build Engine CI attempt exposed a Swift optional-chaining parse error in Xcode scheme discovery; the source was corrected in commit 3f8d93d.
-- Follow-up improvements add npm/yarn/pnpm detection and broader Unity Hub editor discovery. The newest combined commit still requires fresh Debug and Release CI.
+- Follow-up improvements add npm/yarn/pnpm detection and broader Unity Hub editor discovery. The latest CI attempt for the Goose integration initially failed because a new PBX file reference reused an existing Xcode project object ID. The collision was corrected with unique IDs in commit 12f4d5d; fresh Debug and Release CI is required.
 - Build adapters are implemented but have not yet been run against real Xcode, Unity or web projects on the user's Mac.
 - Physical Mac launch and visual validation have not been performed.
 
