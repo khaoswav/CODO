@@ -103,7 +103,11 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - Physical Mac launch and visual validation have not been performed.
 
 ## Next
-Add automated tests for unified diff parsing, command approval, build planning and Git workflow safety. Then validate the sequential Goose roles, real Xcode/Unity/web builds and authenticated GitHub CLI on a physical Mac.
+- [ ] Physically launch CODO on the user's Mac and inspect the native dependency graph.
+- [ ] Validate the graph against representative Swift, Unity C# and web projects.
+- [ ] Run the complete sequential Goose workflow with a configured provider, including patch review, approved build, cancellation and build-fix retry.
+- [ ] Validate real Xcode, Unity and web build adapters plus authenticated GitHub CLI on the user's Mac.
+- [ ] After PR #1 is merged, re-check PR #2's base/diff and finalize the dependent change.
 
 
 ## Developer Intelligence Graph + Agent Orchestrator refinement
@@ -117,7 +121,7 @@ Add automated tests for unified diff parsing, command approval, build planning a
 - [x] Allow an explicitly requested build-fix retry to recover a persisted failed workflow after relaunch and restart at the Implementer stage.
 - [x] Redact credential-like values before Goose build-log handoff and before saving step output excerpts.
 - [x] Expand automated coverage for dependency graph direction, project scanning, build-log fingerprinting/redaction, workflow persistence/recovery, retry counts and cancellation.
-- [ ] Verify this refinement branch with the full Debug and Release CI run.
+- [x] Verify this refinement branch with the full Debug and Release CI run: run 41728757160 passed all 8 test groups and both Xcode configurations.
 - [ ] Validate the rendered graph and live Goose workflow on the user's physical Mac.
 
 ### Scope and limits
