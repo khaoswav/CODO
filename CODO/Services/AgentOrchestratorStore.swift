@@ -116,6 +116,14 @@ final class AgentOrchestratorStore: ObservableObject {
 
     var currentStepTitle: String? { activeStep?.title }
 
+    var completedStageContext: String {
+        guard let workflow = activeWorkflow else { return "" }
+        return workflow.steps
+            .filter { $0.status == .succeeded && !($0.outputExcerpt ?? "").isEmpty }
+            .map { "STAGE: " + $0.title + "\\n" + ($0.outputExcerpt ?? "") }
+            .joined(separator: "\\n\\n")
+    }
+
     func completeCurrentAndAdvance(_ summary: String, output: String? = nil) {
         guard isWorkflowActive else { return }
         completeCurrentStep(summary, output: output)
