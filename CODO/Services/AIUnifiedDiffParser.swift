@@ -62,6 +62,7 @@ enum AIUnifiedDiffParser {
                 throw AIUnifiedDiffError.unsupportedChange(relativePath)
             }
 
+            let lineEnding = original.contains("\r\n") ? "\r\n" : "\n"
             var sourceLines = original.components(separatedBy: .newlines)
             let hadTrailingNewline = original.hasSuffix("\n")
             if hadTrailingNewline && sourceLines.last == "" { sourceLines.removeLast() }
@@ -69,7 +70,7 @@ enum AIUnifiedDiffParser {
             var sourceCursor = 0
             var foundHunk = false
 
-            while index < lines.count && !lines[index].hasPrefix("--- ") {
+            while index < lines.count && !isFileHeader(lines, at: index) {
                 guard lines[index].hasPrefix("@@ ") else { index += 1; continue }
                 let headerParts = lines[index].split(separator: " ")
                 guard headerParts.count >= 3 else { throw AIUnifiedDiffError.malformedPatch(relativePath) }
@@ -88,7 +89,7 @@ enum AIUnifiedDiffParser {
 
                 while index < lines.count &&
                         !lines[index].hasPrefix("@@ ") &&
-                        !lines[index].hasPrefix("--- ") {
+                        !isFileHeader(lines, at: index) {
                     let line = lines[index]
                     if line.hasPrefix("\\ No newline at end of file") {
                         index += 1
@@ -120,8 +121,8 @@ enum AIUnifiedDiffParser {
 
             guard foundHunk else { throw AIUnifiedDiffError.malformedPatch(relativePath) }
             outputLines.append(contentsOf: sourceLines.dropFirst(sourceCursor))
-            var proposed = outputLines.joined(separator: "\n")
-            if hadTrailingNewline { proposed += "\n" }
+            var proposed = outputLines.joined(separator: lineEnding)
+            if hadTrailingNewline { proposed += lineEnding }
             let change = try ProjectFileChangeService.prepare(
                 file: canonicalFile,
                 project: project,
@@ -133,6 +134,10 @@ enum AIUnifiedDiffParser {
 
         guard !changes.isEmpty else { throw AIUnifiedDiffError.noChanges }
         return changes
+    }
+
+    private static func isFileHeader(_ lines: [String], at index: Int) -> Bool {
+        index + 1 < lines.count && lines[index].hasPrefix("--- ") && lines[index + 1].hasPrefix("+++ ")
     }
 
     private static func normalizedPath(_ header: String) -> String? {
