@@ -11,11 +11,11 @@ private struct DependencyGraphCanvas: View {
     let edges: [IntelligenceGraphEdge]
 
     private var rowsPerLayer: Int {
-        Dictionary(grouping: nodes, by: \\.layer).values.map(\\.count).max() ?? 1
+        Dictionary(grouping: nodes, by: \.layer).values.map(\.count).max() ?? 1
     }
 
     private var columnCount: Int {
-        (nodes.map(\\.layer).max() ?? 0) + 1
+        (nodes.map(\.layer).max() ?? 0) + 1
     }
 
     private var canvasWidth: CGFloat {
@@ -277,7 +277,7 @@ struct DeveloperIntelligenceView: View {
 
     private func architecturePanel(_ report: DeveloperIntelligenceReport) -> some View {
         let graphNodes = IntelligenceGraphLayout.layout(files: report.files, edges: report.graphEdges, limit: 32)
-        let visiblePaths = Set(graphNodes.map(\\.path))
+        let visiblePaths = Set(graphNodes.map(\.path))
         let visibleEdges = Array(report.graphEdges.filter {
             visiblePaths.contains($0.sourceFile) && visiblePaths.contains($0.targetFile)
         }.prefix(60))
@@ -285,7 +285,7 @@ struct DeveloperIntelligenceView: View {
         return VStack(alignment: .leading, spacing: 12) {
             Label("Resolved source graph", systemImage: "point.3.connected.trianglepath.dotted")
                 .font(.system(size: 13, weight: .semibold))
-            Text("\\(report.files.count) file nodes · \\(report.graphEdges.count) resolved local edges · \\(max(0, report.dependencies.count - report.graphEdges.count)) external or unresolved imports")
+            Text("\(report.files.count) file nodes · \(report.graphEdges.count) resolved local edges · \(max(0, report.dependencies.count - report.graphEdges.count)) external or unresolved imports")
                 .font(.system(size: 10)).foregroundStyle(CODOTheme.secondaryText)
             if report.graphEdges.isEmpty {
                 Text("No unambiguous local file-to-file dependencies were resolved. External imports are intentionally excluded from the local graph.")
@@ -320,14 +320,14 @@ struct DeveloperIntelligenceView: View {
                     Image(systemName: "doc.text").foregroundStyle(CODOTheme.accent)
                     Text(file.path).lineLimit(1)
                     Spacer()
-                    Text("\\(file.lineCount) lines")
+                    Text("\(file.lineCount) lines")
                         .font(.system(size: 9, design: .monospaced))
                         .foregroundStyle(CODOTheme.mutedText)
                 }
                 .font(.system(size: 10, design: .monospaced))
             }
             if report.files.count > 100 {
-                Text("Showing first 100 of \\(report.files.count) files.")
+                Text("Showing first 100 of \(report.files.count) files.")
                     .font(.system(size: 10)).foregroundStyle(CODOTheme.mutedText)
             }
         }
