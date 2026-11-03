@@ -88,6 +88,8 @@ struct DeveloperIntelligenceTests {
         """
         let diagnostics = BuildFailureAnalyzer.extractDiagnostics(from: log)
         try expect(diagnostics.count == 2, "Repeated compiler errors should normalize while distinct errors remain")
+        try expect(diagnostics[0].category == "Missing symbol or type",
+                   "Missing-symbol compiler errors should receive a diagnosis category")
         try expect(!diagnostics.contains(where: { $0.message.contains("super-secret-123") }),
                    "Credential-like values must be redacted from build memory")
         let merged = BuildFailureAnalyzer.merge([diagnostics[0], diagnostics[0]], into: [])
