@@ -59,6 +59,7 @@ struct DeveloperIntelligenceView: View {
                             )
                             .frame(maxWidth: .infinity, minHeight: 180)
                         }
+                        buildFailurePanel
                         taskPlannerPanel
                         gitWorkflowPanel
                         projectMemoryPanel
@@ -268,6 +269,44 @@ struct DeveloperIntelligenceView: View {
                 }
             }
             Text("These are static heuristics, not a compiler, profiler or security audit. Confirm findings before changing code.")
+                .font(.system(size: 9)).foregroundStyle(CODOTheme.mutedText)
+        }
+        .padding(18)
+        .background(CODOTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(CODOTheme.border, lineWidth: 1))
+    }
+
+    private var buildFailurePanel: some View {
+        let patterns = memory.buildFailurePatterns ?? []
+        return VStack(alignment: .leading, spacing: 10) {
+            Label("Build failure memory", systemImage: "waveform.path.ecg")
+                .font(.system(size: 13, weight: .semibold))
+            if patterns.isEmpty {
+                Text("No recurring build errors have been recorded for this project yet. Failed Xcode, Unity and web builds will add diagnostic fingerprints here.")
+                    .font(.system(size: 10)).foregroundStyle(CODOTheme.secondaryText)
+            } else {
+                ForEach(patterns.prefix(8)) { pattern in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("\(pattern.occurrenceCount) occurrence\(pattern.occurrenceCount == 1 ? "" : "s")")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(CODOTheme.orange)
+                            Spacer()
+                            Text(pattern.lastSeen.formatted(date: .abbreviated, time: .shortened))
+                                .font(.system(size: 9)).foregroundStyle(CODOTheme.mutedText)
+                        }
+                        Text(pattern.summary).font(.system(size: 10, design: .monospaced))
+                            .textSelection(.enabled)
+                        if let example = pattern.recentExamples.first, example != pattern.summary {
+                            Text("Latest: " + example).font(.system(size: 9))
+                                .foregroundStyle(CODOTheme.secondaryText)
+                        }
+                    }
+                    .padding(9)
+                    .background(CODOTheme.elevated, in: RoundedRectangle(cornerRadius: 8))
+                }
+            }
+            Text("Compiler diagnostics are fingerprinted and stored locally. CODO does not upload these logs to a server.")
                 .font(.system(size: 9)).foregroundStyle(CODOTheme.mutedText)
         }
         .padding(18)
