@@ -82,12 +82,11 @@ enum ProjectBuildPlanner {
             let script = command == .webBuild ? "build" : "test"
             guard scripts[script] != nil else { return nil }
             let manager = detectPackageManager(files: files, packageJSON: object)
-            let args = ["-C", root.path, "run", script]
-            let finalArguments = manager == .npm ? ["run", script] : args
+            let args = [manager.executable, "run", script]
             return PlannedCommand(
                 executable: URL(fileURLWithPath: "/usr/bin/env"),
-                arguments: [manager.executable] + finalArguments,
-                display: manager.executable + " " + finalArguments.joined(separator: " ")
+                arguments: args,
+                display: args.joined(separator: " ")
             )
 
         default:
