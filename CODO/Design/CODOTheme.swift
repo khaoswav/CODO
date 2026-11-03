@@ -1,17 +1,18 @@
+import AppKit
 import SwiftUI
 
 enum CODOTheme {
-    static let background = Color(hex: 0x101014)
-    static let surface = Color(hex: 0x18181F)
-    static let elevated = Color(hex: 0x20202A)
-    static let border = Color.white.opacity(0.075)
-    static let accent = Color(hex: 0x9B83F6)
-    static let accentSoft = Color(hex: 0x9B83F6).opacity(0.14)
-    static let primaryText = Color(hex: 0xF2F0F8)
-    static let secondaryText = Color(hex: 0x92909F)
-    static let mutedText = Color(hex: 0x62616D)
-    static let green = Color(hex: 0x65C99A)
-    static let orange = Color(hex: 0xE6B477)
+    static let background = Color(nsColor: .windowBackgroundColor)
+    static let surface = Color(nsColor: .controlBackgroundColor)
+    static let elevated = Color(nsColor: .underPageBackgroundColor)
+    static let border = Color(nsColor: .separatorColor).opacity(0.65)
+    static let accent = Color(hex: 0x8B72E8)
+    static let accentSoft = accent.opacity(0.13)
+    static let primaryText = Color(nsColor: .labelColor)
+    static let secondaryText = Color(nsColor: .secondaryLabelColor)
+    static let mutedText = Color(nsColor: .tertiaryLabelColor)
+    static let green = Color(nsColor: .systemGreen)
+    static let orange = Color(nsColor: .systemOrange)
 }
 
 extension Color {
