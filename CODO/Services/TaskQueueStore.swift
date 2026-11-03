@@ -105,6 +105,13 @@ final class TaskQueueStore: ObservableObject {
         runner.stop()
     }
 
+    func clearLiveOutput() {
+        guard !isRunning else { return }
+        runner.clear()
+        liveOutput = ""
+        processStatus = "Ready"
+    }
+
     func clearFinishedHistory() {
         tasks.removeAll { $0.status != .queued && $0.status != .running }
         persist()
@@ -126,6 +133,7 @@ final class TaskQueueStore: ObservableObject {
         tasks[index].startedAt = .now
         persist()
         runner.run(next.command, for: next.project, root: next.root)
+        processStatus = runner.status
     }
 
     private func trimHistory() {
