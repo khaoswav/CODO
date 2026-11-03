@@ -303,7 +303,17 @@ enum DeveloperIntelligenceService {
 struct BuildDiagnostic: Identifiable, Codable, Hashable {
     let signature: String
     let message: String
+    let category: String
+    let suggestedAction: String
     var id: String { signature }
+
+    init(signature: String, message: String) {
+        self.signature = signature
+        self.message = message
+        let guidance = BuildFailureAnalyzer.guidance(for: message)
+        category = guidance.category
+        suggestedAction = guidance.action
+    }
 }
 
 struct BuildFailurePattern: Identifiable, Codable {
@@ -312,10 +322,41 @@ struct BuildFailurePattern: Identifiable, Codable {
     var occurrenceCount: Int
     var lastSeen: Date
     var recentExamples: [String]
+    var category: String? = nil
+    var suggestedAction: String? = nil
     var id: String { signature }
 }
 
 enum BuildFailureAnalyzer {
+    static func guidance(for message: String) -> (category: String, action: String) {
+        let value = message.lowercased()
+        if value.contains("no such module") || value.contains("module not found") {
+            return ("Missing module", "Check package resolution, target membership and the selected build configuration.")
+        }
+        if value.contains("cannot find") || value.contains("not in scope") || value.contains("cs0246") {
+            return ("Missing symbol or type", "Check imports, target membership, module dependencies and the symbol's access level.")
+        }
+        if value.contains("undefined symbols") || value.contains("linker command failed") {
+            return ("Linker failure", "Check linked frameworks, library search paths and target link phases.")
+        }
+        if value.contains("signing") || value.contains("provisioning profile") || value.contains("code sign") {
+            return ("Code signing", "Check the selected team, signing identity, provisioning profile and build destination.")
+        }
+        if value.contains("package.resolution") || value.contains("failed to resolve dependencies") || value.contains("could not resolve package") {
+            return ("Package resolution", "Check package URLs and versions, then resolve dependencies again.")
+        }
+        if value.contains("unable to type-check") || value.contains("type-check this expression") {
+            return ("Swift type-check complexity", "Split the expression into smaller typed intermediate values.")
+        }
+        if value.contains("error cs") {
+            return ("C# compilation", "Inspect the Unity compiler diagnostic and verify assembly definitions and package versions.")
+        }
+        if value.contains("module build failed") || value.contains("typescript") {
+            return ("Web compilation", "Check the reported module path, TypeScript types and package versions.")
+        }
+        return ("Compiler or build error", "Inspect the first compiler error and fix the earliest root cause before downstream errors.")
+    }
+
     static func extractDiagnostics(from log: String, limit: Int = 8) -> [BuildDiagnostic] {
         let lines = log.components(separatedBy: .newlines)
         var results: [BuildDiagnostic] = []
@@ -358,6 +399,8 @@ enum BuildFailureAnalyzer {
             if let index = patterns.firstIndex(where: { $0.signature == diagnostic.signature }) {
                 patterns[index].occurrenceCount += 1
                 patterns[index].lastSeen = now
+                patterns[index].category = diagnostic.category
+                patterns[index].suggestedAction = diagnostic.suggestedAction
                 patterns[index].recentExamples.insert(diagnostic.message, at: 0)
                 patterns[index].recentExamples = Array(patterns[index].recentExamples.prefix(3))
             } else {
@@ -366,7 +409,9 @@ enum BuildFailureAnalyzer {
                     summary: diagnostic.message,
                     occurrenceCount: 1,
                     lastSeen: now,
-                    recentExamples: [diagnostic.message]
+                    recentExamples: [diagnostic.message],
+                    category: diagnostic.category,
+                    suggestedAction: diagnostic.suggestedAction
                 ))
             }
         }
