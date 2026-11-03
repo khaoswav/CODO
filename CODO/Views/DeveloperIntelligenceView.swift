@@ -6,6 +6,98 @@ private struct LanguageCountRow: Identifiable {
     var id: String { name }
 }
 
+private struct DependencyGraphCanvas: View {
+    let nodes: [IntelligenceGraphNode]
+    let edges: [IntelligenceGraphEdge]
+
+    private var rowsPerLayer: Int {
+        Dictionary(grouping: nodes, by: \\.layer).values.map(\\.count).max() ?? 1
+    }
+
+    private var columnCount: Int {
+        (nodes.map(\\.layer).max() ?? 0) + 1
+    }
+
+    private var canvasWidth: CGFloat {
+        CGFloat(max(760, columnCount * 190))
+    }
+
+    private var canvasHeight: CGFloat {
+        CGFloat(max(280, rowsPerLayer * 52 + 40))
+    }
+
+    var body: some View {
+        Canvas { context, size in
+            let nodeWidth = min(172.0, max(118.0, (size.width - 80) / CGFloat(max(1, columnCount)) * 0.72))
+            let nodeHeight: CGFloat = 38
+            let positions = Dictionary(uniqueKeysWithValues: nodes.map { node in
+                (node.path, CGPoint(
+                    x: 40 + CGFloat(node.x) * (size.width - 80),
+                    y: 20 + CGFloat(node.y) * (size.height - 40)
+                ))
+            })
+
+            for edge in edges {
+                guard let source = positions[edge.sourceFile],
+                      let target = positions[edge.targetFile] else { continue }
+                let dx = target.x - source.x
+                let dy = target.y - source.y
+                let distance = max(1, hypot(dx, dy))
+                let ux = dx / distance
+                let uy = dy / distance
+                let start = CGPoint(
+                    x: source.x + ux * nodeWidth * 0.48,
+                    y: source.y + uy * nodeHeight * 0.48
+                )
+                let end = CGPoint(
+                    x: target.x - ux * nodeWidth * 0.48,
+                    y: target.y - uy * nodeHeight * 0.48
+                )
+                var connector = Path()
+                connector.move(to: start)
+                connector.addLine(to: end)
+                context.stroke(connector, with: .color(CODOTheme.accent.opacity(0.48)), lineWidth: 1.35)
+
+                let angle = atan2(dy, dx)
+                let wing: CGFloat = 5
+                let arrowLength: CGFloat = 8
+                let base = CGPoint(x: end.x - cos(angle) * arrowLength, y: end.y - sin(angle) * arrowLength)
+                var arrow = Path()
+                arrow.move(to: end)
+                arrow.addLine(to: CGPoint(
+                    x: base.x + cos(angle + .pi / 2) * wing,
+                    y: base.y + sin(angle + .pi / 2) * wing
+                ))
+                arrow.move(to: end)
+                arrow.addLine(to: CGPoint(
+                    x: base.x + cos(angle - .pi / 2) * wing,
+                    y: base.y + sin(angle - .pi / 2) * wing
+                ))
+                context.stroke(arrow, with: .color(CODOTheme.accent.opacity(0.8)), lineWidth: 1.35)
+            }
+
+            for node in nodes {
+                guard let center = positions[node.path] else { continue }
+                let rect = CGRect(
+                    x: center.x - nodeWidth / 2,
+                    y: center.y - nodeHeight / 2,
+                    width: nodeWidth,
+                    height: nodeHeight
+                )
+                let shape = Path(roundedRect: rect, cornerRadius: 8)
+                context.fill(shape, with: .color(CODOTheme.elevated))
+                context.stroke(shape, with: .color(CODOTheme.border), lineWidth: 1)
+                let label = Text(String(node.path.suffix(26)))
+                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .foregroundColor(CODOTheme.primaryText)
+                context.draw(label, at: center)
+            }
+        }
+        .frame(width: canvasWidth, height: canvasHeight)
+        .background(CODOTheme.elevated.opacity(0.35), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
 struct DeveloperIntelligenceView: View {
     let onStartTask: (String) -> Void
     private enum GitAction: String, Identifiable {
@@ -184,16 +276,27 @@ struct DeveloperIntelligenceView: View {
     }
 
     private func architecturePanel(_ report: DeveloperIntelligenceReport) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let graphNodes = IntelligenceGraphLayout.layout(files: report.files, edges: report.graphEdges, limit: 32)
+        let visiblePaths = Set(graphNodes.map(\\.path))
+        let visibleEdges = Array(report.graphEdges.filter {
+            visiblePaths.contains($0.sourceFile) && visiblePaths.contains($0.targetFile)
+        }.prefix(60))
+
+        return VStack(alignment: .leading, spacing: 12) {
             Label("Resolved source graph", systemImage: "point.3.connected.trianglepath.dotted")
                 .font(.system(size: 13, weight: .semibold))
-            Text("\(report.files.count) file nodes · \(report.graphEdges.count) resolved local edges · \(max(0, report.dependencies.count - report.graphEdges.count)) external or unresolved imports")
+            Text("\\(report.files.count) file nodes · \\(report.graphEdges.count) resolved local edges · \\(max(0, report.dependencies.count - report.graphEdges.count)) external or unresolved imports")
                 .font(.system(size: 10)).foregroundStyle(CODOTheme.secondaryText)
             if report.graphEdges.isEmpty {
                 Text("No unambiguous local file-to-file dependencies were resolved. External imports are intentionally excluded from the local graph.")
                     .font(.system(size: 11)).foregroundStyle(CODOTheme.secondaryText)
             } else {
-                ForEach(report.graphEdges.prefix(100)) { edge in
+                ScrollView(.horizontal, showsIndicators: true) {
+                    DependencyGraphCanvas(nodes: graphNodes, edges: visibleEdges)
+                }
+                Text("Arrows show detected imports. The graph prioritizes the most connected files and displays up to 32 nodes.")
+                    .font(.system(size: 9)).foregroundStyle(CODOTheme.mutedText)
+                ForEach(visibleEdges.prefix(8)) { edge in
                     HStack(alignment: .top, spacing: 8) {
                         Text(edge.sourceFile).lineLimit(1)
                         Image(systemName: "arrow.right").foregroundStyle(CODOTheme.accent)
@@ -202,11 +305,11 @@ struct DeveloperIntelligenceView: View {
                         Text(edge.kind.uppercased()).font(.system(size: 8, weight: .bold))
                             .foregroundStyle(CODOTheme.mutedText)
                     }
-                    .font(.system(size: 10, design: .monospaced))
+                    .font(.system(size: 9, design: .monospaced))
                 }
-                if report.graphEdges.count > 100 {
-                    Text("Showing first 100 of \(report.graphEdges.count) resolved edges.")
-                        .font(.system(size: 10)).foregroundStyle(CODOTheme.mutedText)
+                if report.graphEdges.count > visibleEdges.count {
+                    Text("Graph view is capped at 32 nodes and 60 visible edges. Full scan metrics remain available above.")
+                        .font(.system(size: 9)).foregroundStyle(CODOTheme.mutedText)
                 }
             }
             Divider().overlay(CODOTheme.border)
@@ -217,14 +320,14 @@ struct DeveloperIntelligenceView: View {
                     Image(systemName: "doc.text").foregroundStyle(CODOTheme.accent)
                     Text(file.path).lineLimit(1)
                     Spacer()
-                    Text("\(file.lineCount) lines")
+                    Text("\\(file.lineCount) lines")
                         .font(.system(size: 9, design: .monospaced))
                         .foregroundStyle(CODOTheme.mutedText)
                 }
                 .font(.system(size: 10, design: .monospaced))
             }
             if report.files.count > 100 {
-                Text("Showing first 100 of \(report.files.count) files.")
+                Text("Showing first 100 of \\(report.files.count) files.")
                     .font(.system(size: 10)).foregroundStyle(CODOTheme.mutedText)
             }
         }
@@ -233,7 +336,7 @@ struct DeveloperIntelligenceView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(CODOTheme.border, lineWidth: 1))
     }
 
-    private func findingsPanel(_ report: DeveloperIntelligenceReport) -> some View {
+        private func findingsPanel(_ report: DeveloperIntelligenceReport) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Code quality signals", systemImage: "checkmark.shield")
                 .font(.system(size: 13, weight: .semibold))
