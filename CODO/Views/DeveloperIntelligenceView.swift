@@ -508,7 +508,7 @@ struct DeveloperIntelligenceView: View {
             if let workflow {
                 Text(workflow.request).font(.system(size: 10)).foregroundStyle(CODOTheme.secondaryText)
                     .lineLimit(3)
-                ForEach(workflow.steps.indices, id: \\.self) { index in
+                ForEach(workflow.steps.indices, id: \.self) { index in
                     let step = workflow.steps[index]
                     let statusIcon = step.status == .succeeded ? "checkmark.circle.fill" :
                         step.status == .running ? "arrow.trianglehead.2.clockwise.circle.fill" :
@@ -525,14 +525,14 @@ struct DeveloperIntelligenceView: View {
                                 .frame(width: 16)
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack {
-                                    Text("\\(index + 1). \\(step.title)").font(.system(size: 10, weight: .semibold))
+                                    Text("\(index + 1). \(step.title)").font(.system(size: 10, weight: .semibold))
                                     Spacer()
                                     Text(step.status.rawValue.uppercased())
                                         .font(.system(size: 8, weight: .bold))
                                         .foregroundStyle(CODOTheme.secondaryText)
                                 }
                                 if let attempts = step.attemptCount, attempts > 1 {
-                                    Text("Attempt \\(attempts)").font(.system(size: 8, design: .monospaced))
+                                    Text("Attempt \(attempts)").font(.system(size: 8, design: .monospaced))
                                         .foregroundStyle(CODOTheme.mutedText)
                                 }
                                 if let result = step.resultSummary {
