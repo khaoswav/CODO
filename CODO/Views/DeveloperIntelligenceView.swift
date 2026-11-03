@@ -286,7 +286,8 @@ struct DeveloperIntelligenceView: View {
                 .disabled(request.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             if !plan.isEmpty {
-                ForEach(Array(plan.enumerated()), id: \.element.id) { index, step in
+                ForEach(plan.indices, id: \.self) { index in
+                    let step = plan[index]
                     HStack(alignment: .top, spacing: 10) {
                         Text(String(index + 1))
                             .font(.system(size: 10, weight: .bold, design: .rounded))
