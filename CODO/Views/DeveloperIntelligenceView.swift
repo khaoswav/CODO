@@ -404,7 +404,8 @@ struct DeveloperIntelligenceView: View {
             if let workflow {
                 Text(workflow.request).font(.system(size: 10)).foregroundStyle(CODOTheme.secondaryText)
                     .lineLimit(3)
-                ForEach(Array(workflow.steps.enumerated()), id: \.element.id) { index, step in
+                ForEach(workflow.steps.indices, id: \.self) { index in
+                    let step = workflow.steps[index]
                     HStack(alignment: .top, spacing: 9) {
                         Image(systemName: step.status == .succeeded ? "checkmark.circle.fill" :
                                 step.status == .running ? "arrow.trianglehead.2.clockwise.circle.fill" :
