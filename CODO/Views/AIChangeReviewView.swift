@@ -4,6 +4,8 @@ struct AIChangeReviewView: View {
     let project: CODOProject
     let root: URL
     let onBuildFailure: (String) -> Void
+    let onBuildCompletion: (CODOExecutionTask) -> Void
+    let onReviewComplete: (Int, Int) -> Void
     @EnvironmentObject private var taskQueue: TaskQueueStore
     @State var changes: [ProjectFileChange]
     @Environment(\.dismiss) private var dismiss
@@ -42,6 +44,7 @@ struct AIChangeReviewView: View {
         .onAppear {
             taskQueue.onTaskCompletion = { task in
                 guard task.id == latestBuildTaskID else { return }
+                onBuildCompletion(task)
                 if task.status == .failed {
                     failedBuildOutput = task.output
                     buildMessage = "Build/test failed. You can send the log to Goose for a proposed fix."
@@ -76,6 +79,8 @@ struct AIChangeReviewView: View {
         ) {
             Button("Approve and run") {
                 if let command = selectedBuildCommand {
+                    onBuildCompletion(CODOExecutionTask(projectID: project.id, projectName: project.name,
+                        commandName: command.rawValue, commandLine: command.displayCommand, status: .queued))
                     latestBuildTaskID = taskQueue.enqueue(command, project: project, root: root, approvalGranted: true)
                     buildMessage = "Queued: " + command.rawValue
                 }
@@ -218,7 +223,10 @@ struct AIChangeReviewView: View {
                 }
                 .menuStyle(.borderlessButton)
             }
-            Button("Close") { dismiss() }.buttonStyle(.bordered)
+            Button("Close") {
+                onReviewComplete(appliedCount, rejectedCount)
+                dismiss()
+            }.buttonStyle(.bordered)
                 .disabled(!changes.isEmpty)
         }
         .padding(16)
