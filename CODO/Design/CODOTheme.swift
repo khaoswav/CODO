@@ -25,7 +25,7 @@ extension Color {
 struct Panel<Content: View>: View {
     let title: String
     let accessory: String?
-    @ViewBuilder var content: Content
+    let content: Content
 
     init(_ title: String, accessory: String? = nil, @ViewBuilder content: () -> Content) {
         self.title = title
