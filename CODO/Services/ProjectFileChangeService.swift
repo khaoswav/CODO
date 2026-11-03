@@ -38,6 +38,10 @@ enum ProjectFileChangeService {
     ]
 
     static func prepare(file: URL, project: CODOProject, root: URL, proposedText: String) throws -> ProjectFileChange {
+        let didStart = project.bookmarkData != nil ? root.startAccessingSecurityScopedResource() : false
+        if project.bookmarkData != nil && !didStart { throw ProjectFileChangeError.accessDenied }
+        defer { if didStart { root.stopAccessingSecurityScopedResource() } }
+
         let canonicalRoot = root.resolvingSymlinksInPath().standardizedFileURL
         let canonicalFile = file.resolvingSymlinksInPath().standardizedFileURL
         guard canonicalFile.path.hasPrefix(canonicalRoot.path + "/") else { throw ProjectFileChangeError.outsideProject }
