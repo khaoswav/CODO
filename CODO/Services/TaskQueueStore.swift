@@ -103,6 +103,38 @@ final class TaskQueueStore: ObservableObject {
         runNext()
     }
 
+    func beginAgentTask(prompt: String, project: CODOProject) -> UUID {
+        let task = CODOExecutionTask(
+            projectID: project.id,
+            projectName: project.name,
+            commandName: "AI Agent · " + String(prompt.prefix(72)),
+            commandLine: prompt,
+            status: .running,
+            startedAt: .now
+        )
+        tasks.insert(task, at: 0)
+        trimHistory()
+        persist()
+        return task.id
+    }
+
+    func appendAgentOutput(_ chunk: String, taskID: UUID) {
+        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else { return }
+        tasks[index].output.append(chunk)
+        if tasks[index].output.count > maximumStoredOutput {
+            tasks[index].output = String(tasks[index].output.suffix(maximumStoredOutput))
+        }
+        persist()
+    }
+
+    func finishAgentTask(taskID: UUID, exitCode: Int32) {
+        guard let index = tasks.firstIndex(where: { $0.id == taskID }) else { return }
+        tasks[index].exitCode = exitCode
+        tasks[index].finishedAt = .now
+        tasks[index].status = exitCode == 0 ? .succeeded : .failed
+        persist()
+    }
+
     func stopCurrent() {
         processStatus = "Stopping…"
         runner.stop()
