@@ -26,7 +26,7 @@ struct CODOExecutionTask: Identifiable, Codable {
 @MainActor
 final class TaskQueueStore: ObservableObject {
     @Published private(set) var tasks: [CODOExecutionTask] = []
-    @Published private(set) var activeTaskID: UUID?
+    @Published private(set) var activeTaskID: UUID?\n    @Published private(set) var liveOutput = ""\n    @Published private(set) var processStatus = "Ready"\n    @Published private(set) var isRunning = false
 
     let runner = ProjectProcessRunner()
     private var pending: [PendingCommand] = []
@@ -49,7 +49,7 @@ final class TaskQueueStore: ObservableObject {
         load()
 
         runner.onOutput = { [weak self] chunk in
-            guard let self, let id = self.activeTaskID,
+            guard let self else { return }\n            self.liveOutput = self.runner.output\n            guard let id = self.activeTaskID,
                   let index = self.tasks.firstIndex(where: { $0.id == id }) else { return }
             self.tasks[index].output.append(chunk)
             if self.tasks[index].output.count > self.maximumStoredOutput {
@@ -61,7 +61,7 @@ final class TaskQueueStore: ObservableObject {
         runner.onCompletion = { [weak self] exitCode in
             guard let self, let id = self.activeTaskID,
                   let index = self.tasks.firstIndex(where: { $0.id == id }) else { return }
-            self.tasks[index].exitCode = exitCode
+            self.isRunning = false\n            self.processStatus = self.runner.status\n            self.liveOutput = self.runner.output\n            self.tasks[index].exitCode = exitCode
             self.tasks[index].finishedAt = .now
             if self.runner.wasStopped {
                 self.tasks[index].status = .cancelled
@@ -93,7 +93,7 @@ final class TaskQueueStore: ObservableObject {
     }
 
     func stopCurrent() {
-        runner.stop()
+        processStatus = "Stopping…"\n        runner.stop()
     }
 
     func clearFinishedHistory() {
