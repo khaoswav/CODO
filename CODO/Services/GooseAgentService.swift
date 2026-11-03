@@ -2,7 +2,7 @@ import Foundation
 import Security
 import SwiftUI
 
-struct GooseConfiguration: Equatable {
+struct GooseConfiguration: Codable, Equatable {
     var provider = "openai"
     var model = "gpt-4.1"
 }
