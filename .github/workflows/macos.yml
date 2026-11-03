@@ -8,13 +8,14 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: codo-macos-${{ github.ref }}
+  group: codo-macos-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
   build:
     name: Build (${{ matrix.configuration }})
     runs-on: macos-15
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
