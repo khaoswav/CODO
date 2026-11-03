@@ -353,7 +353,11 @@ struct WorkspaceView: View {
         let retryingFailedBuild = isFixRequest
         if !retryingFailedBuild { fixAttempts = 0 }
         isFixRequest = false
-        if retryingFailedBuild { orchestrator.resumeForFix() }
+        if retryingFailedBuild {
+            orchestrator.resumeForFix()
+        } else {
+            orchestrator.approveCurrentStep()
+        }
         let memory = store.projectMemory(project)
         var context: [String] = []
         if let summary = memory.lastArchitectureSummary { context.append("LATEST PROJECT SCAN:\n" + summary) }
