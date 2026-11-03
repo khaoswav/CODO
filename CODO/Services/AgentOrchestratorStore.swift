@@ -168,7 +168,7 @@ final class AgentOrchestratorStore: ObservableObject {
     func resumeForFix() {
         guard let workflowIndex = activeWorkflowIndex else { return }
         guard let implementationIndex = workflows[workflowIndex].steps.firstIndex(where: {
-            $0.title.localizedCaseInsensitiveContains("Implement")
+            $0.title.localizedCaseInsensitiveContains("Implement the change")
         }) else { return }
         for index in workflows[workflowIndex].steps.indices {
             if index >= implementationIndex {
