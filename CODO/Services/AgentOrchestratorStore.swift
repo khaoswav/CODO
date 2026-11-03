@@ -46,11 +46,15 @@ final class AgentOrchestratorStore: ObservableObject {
 
     private let storageURL: URL
 
-    init() {
-        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let directory = support.appendingPathComponent("CODO", isDirectory: true)
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        storageURL = directory.appendingPathComponent("agent-workflows.json")
+    init(storageURL overrideURL: URL? = nil) {
+        if let overrideURL {
+            storageURL = overrideURL
+        } else {
+            let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            let directory = support.appendingPathComponent("CODO", isDirectory: true)
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            storageURL = directory.appendingPathComponent("agent-workflows.json")
+        }
         load()
     }
 
