@@ -27,6 +27,7 @@ struct CODOView: View {
     @EnvironmentObject private var store: ProjectStore
     @StateObject private var taskQueue = TaskQueueStore()
     @State private var tab: WorkspaceTab = .overview
+    @State private var pendingAgentTask: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -41,10 +42,12 @@ struct CODOView: View {
                     case .files: ProjectBrowserView()
                     case .project: ProjectOverviewView()
                     case .intelligence: DeveloperIntelligenceView(onStartTask: { task in
+                        pendingAgentTask = task
                         tab = .workspace
-                        NotificationCenter.default.post(name: .codoStartAgentTask, object: task)
                     })
-                    case .workspace: WorkspaceView()
+                    case .workspace: WorkspaceView(pendingPrompt: pendingAgentTask, onPromptConsumed: {
+                        pendingAgentTask = nil
+                    })
                     case .terminal: TerminalView()
                     case .activity: ActivityView()
                     }
