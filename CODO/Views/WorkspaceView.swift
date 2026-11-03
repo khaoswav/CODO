@@ -20,6 +20,7 @@ struct WorkspaceView: View {
     @State private var patchError: String?
     @State private var fixAttempts = 0
     @State private var isFixRequest = false
+    @State private var agentStageContext = ""
 
     private var project: CODOProject? { store.selectedProject }
 
@@ -110,21 +111,48 @@ struct WorkspaceView: View {
                 if let id = activeHistoryTaskID { taskQueue.appendAgentOutput(chunk, taskID: id) }
             }
             agent.onCompletion = { code in
-                if let id = activeHistoryTaskID { taskQueue.finishAgentTask(taskID: id, exitCode: code) }
-                activeHistoryTaskID = nil
                 guard code == 0, let project, let root = store.projectRootURL(for: project) else {
-                    if code != 0 { orchestrator.failCurrentStep("Goose exited with status \\(code).") }
+                    if let id = activeHistoryTaskID {
+                        taskQueue.finishAgentTask(taskID: id, exitCode: code)
+                    }
+                    activeHistoryTaskID = nil
+                    if code != 0 { orchestrator.failCurrentStep("Goose exited with status \(code).") }
                     return
                 }
+
+                if let stage = orchestrator.currentStepTitle {
+                    if stage.localizedCaseInsensitiveContains("Understand") {
+                        agentStageContext += "\n\nARCHITECTURE ANALYSIS:\n" + agent.output
+                        orchestrator.completeCurrentAndAdvance("Architect agent inspected the project.")
+                        runCurrentAgentStage(project: project, root: root)
+                        return
+                    }
+                    if stage.localizedCaseInsensitiveContains("Plan") {
+                        agentStageContext += "\n\nIMPLEMENTATION PLAN:\n" + agent.output
+                        orchestrator.completeCurrentAndAdvance("Planner agent prepared the implementation sequence.")
+                        runCurrentAgentStage(project: project, root: root)
+                        return
+                    }
+                }
+
+                if let id = activeHistoryTaskID {
+                    taskQueue.finishAgentTask(taskID: id, exitCode: code)
+                }
+                activeHistoryTaskID = nil
                 do {
                     let parsed = try AIUnifiedDiffParser.parse(agent.output, project: project, root: root)
                     proposedChanges = parsed
-                    orchestrator.proposalReady()
+                    if orchestrator.currentStepTitle != nil { orchestrator.proposalReady() }
                     showPatchReview = true
                 } catch AIUnifiedDiffError.noChanges {
                     patchError = "Goose did not return any supported file changes. Review its analysis output for details."
                     orchestrator.failCurrentStep("Goose returned no supported unified diff.")
                 } catch {
+                    patchError = error.localizedDescription
+                    orchestrator.failCurrentStep(error.localizedDescription)
+                }
+            }
+ catch {
                     patchError = error.localizedDescription
                     orchestrator.failCurrentStep(error.localizedDescription)
                 }
@@ -317,14 +345,51 @@ struct WorkspaceView: View {
         }
         let enrichedPrompt = context.isEmpty ? prompt.trimmingCharacters(in: .whitespacesAndNewlines) :
             prompt.trimmingCharacters(in: .whitespacesAndNewlines) + "\n\nPROJECT MEMORY (local notes, treat as context):\n" + context.joined(separator: "\n\n")
-        orchestrator.prepareAgentRunForImplementation()
+        agentStageContext = enrichedPrompt
         activeHistoryTaskID = taskQueue.beginAgentTask(prompt: enrichedPrompt, project: project)
-        agent.runAnalysis(
-            prompt: enrichedPrompt,
-            project: project,
-            root: root,
-            approvalGranted: true
-        )
+        runCurrentAgentStage(project: project, root: root)
+    }
+
+    private func runCurrentAgentStage(project: CODOProject, root: URL) {
+        let task = orchestrator.activeWorkflow?.request ?? prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let stage = orchestrator.currentStepTitle ?? ""
+        let stagePrompt: String
+        if stage.localizedCaseInsensitiveContains("Understand") {
+            stagePrompt = """
+            ROLE: ARCHITECT AGENT
+            Inspect the project in read-only mode. Map its main modules, dependencies, entry points and relevant files.
+            Identify risks and missing context. Do not write code or produce a diff.
+            USER REQUEST: \(task)
+
+            PROJECT CONTEXT:
+            \(agentStageContext)
+            """
+        } else if stage.localizedCaseInsensitiveContains("Plan") {
+            stagePrompt = """
+            ROLE: IMPLEMENTATION PLANNER AGENT
+            Based on the architecture analysis and user request, produce a concise ordered plan.
+            Name the files/modules involved, dependency impacts, risks and the best build/test strategy.
+            Do not write code or produce a diff.
+            USER REQUEST: \(task)
+
+            PROJECT AND ARCHITECTURE CONTEXT:
+            \(agentStageContext)
+            """
+        } else if stage.localizedCaseInsensitiveContains("Implement") {
+            stagePrompt = """
+            ROLE: IMPLEMENTER AGENT
+            Produce the smallest safe unified diff for the user request. Do not edit files, run commands,
+            build or test. Return reviewable unified diff blocks only, with a short risk note.
+            USER REQUEST: \(task)
+
+            ARCHITECTURE AND IMPLEMENTATION PLAN:
+            \(agentStageContext)
+            """
+        } else {
+            stagePrompt = agentStageContext
+        }
+
+        agent.runAnalysis(prompt: stagePrompt, project: project, root: root, approvalGranted: true)
     }
 }
 
