@@ -3,6 +3,7 @@ import SwiftUI
 struct AIChangeReviewView: View {
     let project: CODOProject
     let root: URL
+    let reviewerNotes: String
     let onBuildFailure: (String) -> Void
     let onBuildCompletion: (CODOExecutionTask) -> Void
     let onReviewComplete: (Int, Int) -> Void
@@ -32,6 +33,20 @@ struct AIChangeReviewView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 14) {
+                        if !reviewerNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            VStack(alignment: .leading, spacing: 7) {
+                                Label("Independent AI review", systemImage: "checkmark.shield")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(CODOTheme.accent)
+                                Text(reviewerNotes)
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(CODOTheme.secondaryText)
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(13)
+                            .background(CODOTheme.elevated, in: RoundedRectangle(cornerRadius: 9))
+                        }
                         ForEach(changes) { change in changeCard(change) }
                     }
                     .padding(18)
