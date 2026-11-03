@@ -124,6 +124,22 @@ struct DeveloperIntelligenceTests {
         let safeLog = BuildFailureAnalyzer.sanitizeLog("API_KEY=super-secret-123\\nAuthorization: Bearer hidden-token-value")
         try expect(!safeLog.contains("super-secret-123") && !safeLog.contains("hidden-token-value"),
                    "Credential-like values must be redacted before Goose log handoff")
+
+        let ansiAndWindowsLog = "\u{001B}[31mAssets/Player.cs(8,4): error CS0246: Missing Unity type\u{001B}[0m\\r\\nMSBuild error MSB3027: Retry limit exceeded\\r\\n"
+        let mixedDiagnostics = BuildFailureAnalyzer.extractDiagnostics(from: ansiAndWindowsLog)
+        try expect(mixedDiagnostics.count == 2,
+                   "ANSI-colored Unity and MSBuild errors with CRLF endings must both be extracted")
+        try expect(mixedDiagnostics[0].category == "Missing symbol or type",
+                   "Unity CS diagnostics should retain their missing-symbol classification")
+        try expect(BuildFailureAnalyzer.extractDiagnostics(from: "warning MSB3027: retrying copy").isEmpty,
+                   "MSBuild warnings must not be recorded as build errors")
+        try expect(BuildFailureAnalyzer.extractDiagnostics(from: ansiAndWindowsLog, limit: 0).isEmpty,
+                   "A zero diagnostic limit must return no diagnostics")
+        try expect(BuildFailureAnalyzer.extractDiagnostics(from: ansiAndWindowsLog, limit: 1).count == 1,
+                   "Diagnostic extraction must respect its configured result limit")
+        let ansiSafeLog = BuildFailureAnalyzer.sanitizeLog("\u{001B}[31mAPI_KEY=super-secret-123\u{001B}[0m")
+        try expect(!ansiSafeLog.contains("\u{001B}") && !ansiSafeLog.contains("super-secret-123"),
+                   "Sanitized Goose handoff logs must remove terminal color codes and secrets")
         let merged = BuildFailureAnalyzer.merge([diagnostics[0], diagnostics[0]], into: [])
         try expect(merged.count == 1, "Repeated signatures should merge into one memory pattern")
         try expect(merged[0].occurrenceCount == 2, "Pattern occurrence count should increase")
