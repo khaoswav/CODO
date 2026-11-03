@@ -1,0 +1,55 @@
+name: CODO macOS App Package
+
+on:
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Build and package CODO.app
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          xcodebuild -version
+          xcodebuild -list -project CODO.xcodeproj
+
+      - name: Build unsigned macOS app
+        run: |
+          xcodebuild \
+            -project CODO.xcodeproj \
+            -scheme CODO \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/CODO-DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Verify app bundle
+        run: |
+          APP_PATH="$RUNNER_TEMP/CODO-DerivedData/Build/Products/Release/CODO.app"
+          test -d "$APP_PATH"
+          test -x "$APP_PATH/Contents/MacOS/CODO"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Contents/Info.plist"
+          file "$APP_PATH/Contents/MacOS/CODO"
+
+      - name: Package app
+        run: |
+          APP_PATH="$RUNNER_TEMP/CODO-DerivedData/Build/Products/Release/CODO.app"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$RUNNER_TEMP/CODO-macOS.zip"
+
+      - name: Upload installable app
+        uses: actions/upload-artifact@v4
+        with:
+          name: CODO-macOS-unsigned
+          path: ${{ runner.temp }}/CODO-macOS.zip
+          if-no-files-found: error
+          retention-days: 14
