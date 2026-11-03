@@ -92,7 +92,7 @@ enum ProjectAnalyzer {
 
     private static func nativeTargets(in source: String, kind: ProjectKind) -> [ProjectTarget] {
         guard !source.isEmpty,
-              let regex = try? NSRegularExpression(pattern: "(?s)[A-F0-9]{24} = \\{(.*?)\\n\\s*\\};") else { return [] }
+              let regex = try? NSRegularExpression(pattern: "(?s)[A-F0-9]{24} = \\{(.*?)\\};") else { return [] }
         let nsSource = source as NSString
         return regex.matches(in: source, range: NSRange(location: 0, length: nsSource.length)).compactMap { match in
             let body = nsSource.substring(with: match.range(at: 1))
