@@ -151,3 +151,22 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - [x] Verify the end-to-end harness in GitHub Actions for both Debug and Release (runs 41733102435 and timeout-hardened run 41733542952 passed both configurations).
 - [ ] Run the adapters against the user's actual Xcode, Unity and web projects on the physical Mac. The Unity CI fixture validates invocation only; it does not replace a licensed Unity Editor build.
 - [x] Add subprocess timeouts to the E2E harness and verify the timeout-hardened implementation in Debug and Release CI (run 41733542952).
+
+
+## Build log diagnostics hardening (PR #5)
+- [x] Strip ANSI terminal color sequences before build diagnostic extraction and Goose log handoff.
+- [x] Recognize Unity C# compiler errors and MSBuild error codes without misclassifying MSBuild warnings.
+- [x] Enforce zero and positive diagnostic result limits deterministically.
+- [x] Add regression fixtures for ANSI-colored output, CRLF logs, Unity CS0246, MSBuild errors/warnings, redaction and result limits.
+- [x] Fingerprint recurring compiler failures by error code and diagnostic payload rather than source path/line, while preserving symbol names to avoid merging distinct missing-type errors.
+- [x] Add cross-file recurrence tests for Swift and Unity diagnostics.
+- [x] Verify the expanded diagnostics and cross-file recurrence regression suite in GitHub Actions Debug and Release (run 41734538595, Debug + Release success).
+- [ ] Validate diagnostic behavior against real local Xcode, Unity and web build logs on the user's Mac.
+
+
+## PR #5 latest CI confirmation
+- [x] Latest PR #5 head CI run 41735036198 passed both Debug and Release, including Developer Intelligence and Build Adapter E2E.
+- [x] PR #6 recovery-context CI run 41735004445 passed both Debug and Release, including Developer Intelligence and Build Adapter E2E.
+- [x] Corrected PR #6 recovery assertions to use the actual persisted stage titles: "Understand the request", "Plan the implementation", and "Implement the change".
+- [ ] PRs remain open and draft. No merge has been authorized or performed.
+- [ ] Real provider-backed Goose execution and physical Mac validation remain intentionally deferred.

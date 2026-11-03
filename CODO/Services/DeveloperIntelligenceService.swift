@@ -444,22 +444,19 @@ enum BuildFailureAnalyzer {
     }
 
     static func extractDiagnostics(from log: String, limit: Int = 8) -> [BuildDiagnostic] {
-        let lines = log.components(separatedBy: .newlines)
+        guard limit > 0 else { return [] }
+        let cleanLog = removingTerminalColorCodes(from: log)
+        let lines = cleanLog.components(separatedBy: .newlines)
         var results: [BuildDiagnostic] = []
         var seen = Set<String>()
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             let lower = trimmed.lowercased()
-            let isDiagnostic = lower.contains("error:") || lower.contains("fatal error:") ||
-                lower.range(of: #"\berror\s+cs[0-9]+\b"#, options: .regularExpression) != nil ||
-                lower.range(of: #"\bmsb[0-9]+\b"#, options: .regularExpression) != nil
+            let isDiagnostic = lower.contains("error:") ||
+                lower.range(of: #"\berror\s+(?:cs|msb)[0-9]+\b"#, options: .regularExpression) != nil
             guard isDiagnostic else { continue }
-            var normalized = redactSecrets(in: trimmed)
-            normalized = normalized.replacingOccurrences(of: #":\d+:\d+:"#,
-                with: ":<line>:<column>:", options: .regularExpression)
-            normalized = normalized.replacingOccurrences(of: #"0x[0-9a-fA-F]+"#,
-                with: "<address>", options: .regularExpression)
-            let signature = normalized.lowercased()
+            let normalized = redactSecrets(in: trimmed)
+            let signature = fingerprint(for: normalized)
             guard seen.insert(signature).inserted else { continue }
             results.append(BuildDiagnostic(signature: signature, message: String(normalized.prefix(500))))
             if results.count >= limit { break }
@@ -467,10 +464,37 @@ enum BuildFailureAnalyzer {
         return results
     }
 
+    private static func fingerprint(for diagnostic: String) -> String {
+        let lower = diagnostic.lowercased()
+        guard let errorRange = lower.range(of: "error") else {
+            return lower.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        let afterError = lower[errorRange.upperBound...]
+        guard let colon = afterError.firstIndex(of: ":") else {
+            return lower.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        let header = String(afterError[..<colon]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let code = header.range(of: #"[a-z]+[0-9]+"#, options: .regularExpression)
+            .map { String(header[$0]) } ?? ""
+        var payload = String(afterError[afterError.index(after: colon)...])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        payload = payload.replacingOccurrences(of: #"0x[0-9a-f]+"#,
+            with: "<address>", options: .regularExpression)
+        return [code, payload].filter { !$0.isEmpty }.joined(separator: ":")
+    }
+
     static func sanitizeLog(_ log: String) -> String {
-        log.components(separatedBy: .newlines)
+        removingTerminalColorCodes(from: log)
+            .components(separatedBy: .newlines)
             .map { redactSecrets(in: $0) }
             .joined(separator: "\n")
+    }
+
+    private static func removingTerminalColorCodes(from value: String) -> String {
+        let pattern = "\u{001B}\\[[0-?]*[ -/]*[@-~]"
+        return value.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
     }
 
     private static func redactSecrets(in line: String) -> String {
