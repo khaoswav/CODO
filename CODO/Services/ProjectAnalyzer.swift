@@ -7,7 +7,13 @@ struct ProjectTarget: Identifiable, Hashable {
     var id: String { name + productType }
 }
 
-struct ProjectMetadata: Identifiable {\n    let label: String\n    let value: String\n    var id: String { label }\n}\n\nstruct ProjectAnalysis {
+struct ProjectMetadata: Identifiable {
+    let label: String
+    let value: String
+    var id: String { label }
+}
+
+struct ProjectAnalysis {
     let projectName: String
     let projectKind: ProjectKind
     let rootPath: String
