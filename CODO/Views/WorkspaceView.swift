@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WorkspaceView: View {
     @EnvironmentObject private var store: ProjectStore
+    @EnvironmentObject private var taskQueue: TaskQueueStore
     @StateObject private var agent = GooseAgentService()
     @State private var prompt = ""
     @State private var apiKey = ""
@@ -10,6 +11,7 @@ struct WorkspaceView: View {
     @State private var showSettings = false
     @State private var showRunApproval = false
     @State private var showKeySaved = false
+    @State private var activeHistoryTaskID: UUID?
 
     private var project: CODOProject? { store.selectedProject }
 
@@ -39,7 +41,16 @@ struct WorkspaceView: View {
         } message: {
             Text(agent.status)
         }
-        .onAppear { agent.checkConnection() }
+        .onAppear {
+            agent.checkConnection()
+            agent.onOutput = { chunk in
+                if let id = activeHistoryTaskID { taskQueue.appendAgentOutput(chunk, taskID: id) }
+            }
+            agent.onCompletion = { code in
+                if let id = activeHistoryTaskID { taskQueue.finishAgentTask(taskID: id, exitCode: code) }
+                activeHistoryTaskID = nil
+            }
+        }
     }
 
     private var header: some View {
@@ -181,6 +192,7 @@ struct WorkspaceView: View {
     private func startAnalysis() {
         guard let project, let root = store.projectRootURL(for: project) else { return }
         agent.configuration = GooseConfiguration(provider: provider, model: model)
+        activeHistoryTaskID = taskQueue.beginAgentTask(prompt: prompt, project: project)
         agent.runAnalysis(
             prompt: prompt.trimmingCharacters(in: .whitespacesAndNewlines),
             project: project,
