@@ -118,8 +118,11 @@ struct DeveloperIntelligenceTests {
         try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Implement") })?.status == .running,
                    "Orchestrator should enter implementation before Goose runs")
         store.proposalReady()
-        try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Review") })?.status == .awaitingApproval,
-                   "Patch review must wait for explicit approval")
+        try expect(store.activeWorkflow?.steps.first(where: { $0.title == "Review the proposal" })?.status == .running,
+                   "Independent reviewer stage should run after implementation")
+        store.completeCurrentAndAdvance("AI review complete.")
+        try expect(store.activeWorkflow?.steps.first(where: { $0.title == "Review and approve" })?.status == .awaitingApproval,
+                   "Human patch review must wait for explicit approval")
         store.reviewCompleted(appliedCount: 1, rejectedCount: 0)
         try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Build") })?.status == .awaitingApproval,
                    "Build stage must wait for explicit approval")
@@ -130,6 +133,7 @@ struct DeveloperIntelligenceTests {
         try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Implement") })?.status == .running,
                    "Fix retry should restart at implementation")
         store.proposalReady()
+        store.completeCurrentAndAdvance("AI review complete.")
         store.reviewCompleted(appliedCount: 1, rejectedCount: 0)
         store.approveCurrentStep()
         store.buildSucceeded()
