@@ -53,7 +53,7 @@ final class GitWorkflowService: ObservableObject {
 
     func createPullRequest(project: CODOProject, root: URL, base: String = "main", approvalGranted: Bool) {
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._/-")
-        guard !base.isEmpty, base.unicodeScalars.allSatisfy({ allowed.contains($0 }), !base.hasPrefix("-") else {
+        guard !base.isEmpty, base.unicodeScalars.allSatisfy({ allowed.contains($0) }), !base.hasPrefix("-") else {
             statusMessage = "Invalid base branch."
             return
         }
