@@ -249,8 +249,7 @@ final class AgentOrchestratorStore: ObservableObject {
             if restored.status == .running || restored.status == .awaitingApproval {
                 restored.status = .failed
                 restored.lastFailure = "CODO closed before this workflow completed."
-                for index in restored.steps.indices where
-                    restored.steps[index].status == .running || restored.steps[index].status == .awaitingApproval {
+                for index in restored.steps.indices where restored.steps[index].status == .running || restored.steps[index].status == .awaitingApproval {
                     restored.steps[index].status = .failed
                     restored.steps[index].finishedAt = .now
                     restored.steps[index].resultSummary = restored.lastFailure
