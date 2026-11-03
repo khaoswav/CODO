@@ -135,10 +135,13 @@ struct DeveloperIntelligenceTests {
 
         // Simulate relaunch: failed workflows are restored as history and can be resumed explicitly.
         let recovered = AgentOrchestratorStore(storageURL: storage)
+        print("RECOVERED WORKFLOWS: " + recovered.workflows.map { "\($0.status.rawValue):" + $0.steps.map { "\($0.title)=\($0.status.rawValue)" }.joined(separator: ",") }.joined(separator: " | "))
         try expect(recovered.activeWorkflow == nil, "A failed workflow should not resume automatically after relaunch")
         recovered.resumeForFix()
-        try expect(recovered.activeWorkflow?.steps.first(where: { $0.title.contains("Implement") })?.status == .running,
-                   "Fix retry should reselect the persisted failed workflow and restart at implementation")
+        let resumedWorkflow = recovered.activeWorkflow
+        let implementationStatus = resumedWorkflow?.steps.first(where: { $0.title.contains("Implement") })?.status
+        try expect(implementationStatus == .running,
+                   "Fix retry should reselect the persisted failed workflow and restart at implementation; workflows=\(recovered.workflows.count), active=\(String(describing: resumedWorkflow?.status)), implementation=\(String(describing: implementationStatus))")
         recovered.proposalReady()
         recovered.completeCurrentAndAdvance("AI review complete.")
         recovered.reviewCompleted(appliedCount: 1, rejectedCount: 0)
