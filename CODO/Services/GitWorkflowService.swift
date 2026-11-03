@@ -31,21 +31,21 @@ final class GitWorkflowService: ObservableObject {
             }
     }
 
-    static func isValidBranchName(_ name: String) -> Bool {
+    nonisolated static func isValidBranchName(_ name: String) -> Bool {
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._/-")
         return !name.isEmpty && name.unicodeScalars.allSatisfy({ allowed.contains($0) }) &&
             !name.hasPrefix("-") && !name.contains("..") && !name.hasSuffix("/") &&
             !name.hasSuffix(".") && !name.contains("//")
     }
 
-    static func isValidBaseBranch(_ name: String) -> Bool {
+    nonisolated static func isValidBaseBranch(_ name: String) -> Bool {
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._/-")
         return !name.isEmpty && name.unicodeScalars.allSatisfy({ allowed.contains($0) }) &&
             !name.hasPrefix("-") && !name.contains("..") && !name.hasSuffix("/") &&
             !name.hasSuffix(".") && !name.contains("//")
     }
 
-    static func stagedCommitArguments(_ message: String) -> [String]? {
+    nonisolated static func stagedCommitArguments(_ message: String) -> [String]? {
         let clean = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return nil }
         return ["commit", "-m", clean]
