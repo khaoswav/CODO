@@ -8,6 +8,12 @@ final class ProjectStore: ObservableObject {
     @Published var selectedProjectID: UUID?
 
     private let storageURL: URL
+    private let maximumPreviewSize = 256 * 1024
+    private let textExtensions: Set<String> = [
+        "swift", "m", "mm", "h", "hpp", "c", "cc", "cpp", "cs", "js", "jsx", "ts", "tsx",
+        "json", "md", "txt", "yml", "yaml", "toml", "xml", "plist", "sh", "py", "rb",
+        "html", "css", "scss", "sql", "gitignore", "entitlements", "xcconfig"
+    ]
 
     init() {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -33,12 +39,12 @@ final class ProjectStore: ObservableObject {
         panel.canCreateDirectories = false
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
-
         let resolvedURL = url.standardizedFileURL
-        guard !projects.contains(where: { URL(fileURLWithPath: $0.path).standardizedFileURL == resolvedURL }) else {
-            selectedProjectID = projects.first(where: {
-                URL(fileURLWithPath: $0.path).standardizedFileURL == resolvedURL
-            })?.id
+
+        if let existing = projects.first(where: {
+            URL(fileURLWithPath: $0.path).standardizedFileURL == resolvedURL
+        }) {
+            selectedProjectID = existing.id
             return
         }
 
@@ -58,7 +64,57 @@ final class ProjectStore: ObservableObject {
         save()
     }
 
-    func resolvedURL(for project: CODOProject) -> URL? {
+    func files(in directory: URL, for project: CODOProject) -> [CODOProjectFile] {
+        withProjectAccess(project) { root in
+            let target = directory.standardizedFileURL
+            guard target.path == root.path || target.path.hasPrefix(root.path + "/") else { return [] }
+            guard let urls = try? FileManager.default.contentsOfDirectory(
+                at: target,
+                includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey, .isHiddenKey],
+                options: [.skipsPackageDescendants, .skipsHiddenFiles]
+            ) else { return [] }
+
+            return urls.compactMap { url in
+                let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey, .isHiddenKey])
+                guard values?.isHidden != true else { return nil }
+                return CODOProjectFile(
+                    url: url,
+                    isDirectory: values?.isDirectory == true,
+                    size: Int64(values?.fileSize ?? 0)
+                )
+            }
+            .sorted {
+                if $0.isDirectory != $1.isDirectory { return $0.isDirectory }
+                return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
+        } ?? []
+    }
+
+    func textPreview(of file: URL, in project: CODOProject) -> String? {
+        withProjectAccess(project) { root in
+            let target = file.standardizedFileURL
+            guard target.path.hasPrefix(root.path + "/"),
+                  !FileManager.default.directoryExists(at: target),
+                  textExtensions.contains(target.pathExtension.lowercased()),
+                  let attributes = try? FileManager.default.attributesOfItem(atPath: target.path),
+                  let size = attributes[.size] as? NSNumber,
+                  size.intValue <= maximumPreviewSize,
+                  let data = try? Data(contentsOf: target),
+                  let text = String(data: data, encoding: .utf8) else { return nil }
+            return text
+        } ?? nil
+    }
+
+    private func withProjectAccess<T>(_ project: CODOProject, perform: (URL) -> T) -> T? {
+        guard let root = resolvedURL(for: project)?.standardizedFileURL else { return nil }
+        let didStart = project.bookmarkData != nil ? root.startAccessingSecurityScopedResource() : false
+        defer {
+            if didStart { root.stopAccessingSecurityScopedResource() }
+        }
+        return perform(root)
+    }
+
+    private func resolvedURL(for project: CODOProject) -> URL? {
         guard let bookmarkData = project.bookmarkData else {
             return URL(fileURLWithPath: project.path)
         }
@@ -80,5 +136,12 @@ final class ProjectStore: ObservableObject {
     private func save() {
         guard let data = try? JSONEncoder().encode(projects) else { return }
         try? data.write(to: storageURL, options: .atomic)
+    }
+}
+
+private extension FileManager {
+    func directoryExists(at url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        return fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory.boolValue
     }
 }
