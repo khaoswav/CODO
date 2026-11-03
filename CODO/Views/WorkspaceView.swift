@@ -265,13 +265,13 @@ struct WorkspaceView: View {
         isFixRequest = false
         let memory = store.projectMemory(project)
         var context: [String] = []
-        if let summary = memory.lastArchitectureSummary { context.append("LATEST PROJECT SCAN:\\n" + summary) }
-        if !memory.purpose.isEmpty { context.append("PROJECT PURPOSE:\\n" + memory.purpose) }
-        if !memory.architectureNotes.isEmpty { context.append("ARCHITECTURE NOTES:\\n" + memory.architectureNotes) }
-        if !memory.decisions.isEmpty { context.append("PREVIOUS DECISIONS:\\n" + memory.decisions.map { "- " + $0 }.joined(separator: "\\n")) }
-        if !memory.nextSteps.isEmpty { context.append("KNOWN NEXT STEPS:\\n" + memory.nextSteps.map { "- " + $0 }.joined(separator: "\\n")) }
+        if let summary = memory.lastArchitectureSummary { context.append("LATEST PROJECT SCAN:\n" + summary) }
+        if !memory.purpose.isEmpty { context.append("PROJECT PURPOSE:\n" + memory.purpose) }
+        if !memory.architectureNotes.isEmpty { context.append("ARCHITECTURE NOTES:\n" + memory.architectureNotes) }
+        if !memory.decisions.isEmpty { context.append("PREVIOUS DECISIONS:\n" + memory.decisions.map { "- " + $0 }.joined(separator: "\n")) }
+        if !memory.nextSteps.isEmpty { context.append("KNOWN NEXT STEPS:\n" + memory.nextSteps.map { "- " + $0 }.joined(separator: "\n")) }
         let enrichedPrompt = context.isEmpty ? prompt.trimmingCharacters(in: .whitespacesAndNewlines) :
-            prompt.trimmingCharacters(in: .whitespacesAndNewlines) + "\\n\\nPROJECT MEMORY (local notes, treat as context):\\n" + context.joined(separator: "\\n\\n")
+            prompt.trimmingCharacters(in: .whitespacesAndNewlines) + "\n\nPROJECT MEMORY (local notes, treat as context):\n" + context.joined(separator: "\n\n")
         activeHistoryTaskID = taskQueue.beginAgentTask(prompt: enrichedPrompt, project: project)
         agent.runAnalysis(
             prompt: enrichedPrompt,
