@@ -111,7 +111,7 @@ struct TerminalView: View {
 
 
     private var approvalDescription: String {
-        "Command: \\(selectedCommandPreview)\\n\\nCODO will run this build or test inside the imported project folder. It may create or modify build output and generated files. No arbitrary shell command is accepted."
+        "Command: \(selectedCommandPreview)\n\nCODO will run this build or test inside the imported project folder. It may create or modify build output and generated files. No arbitrary shell command is accepted."
     }
 
     private func enqueueSelectedCommand(approved: Bool) {
