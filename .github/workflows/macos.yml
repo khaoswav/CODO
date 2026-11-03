@@ -1,0 +1,15 @@
+name: macOS Build
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build CODO
+        run: xcodebuild -project CODO.xcodeproj -scheme CODO -configuration Debug -sdk macosx CODE_SIGNING_ALLOWED=NO build
