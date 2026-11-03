@@ -265,3 +265,8 @@ enum IntelligenceTaskPlanner {
         ]
     }
 }
+
+
+extension Notification.Name {
+    static let codoStartAgentTask = Notification.Name("com.kialne.codo.start-agent-task")
+}
