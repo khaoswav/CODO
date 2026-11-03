@@ -87,11 +87,12 @@ final class TaskQueueStore: ObservableObject {
 
     func enqueue(_ command: ProjectCommand, project: CODOProject, root: URL, approvalGranted: Bool = false) {
         guard !command.requiresApproval || approvalGranted else { return }
+        let planned = ProjectBuildPlanner.plan(command, root: root, project: project)
         let task = CODOExecutionTask(
             projectID: project.id,
             projectName: project.name,
             commandName: command.rawValue,
-            commandLine: command.displayCommand,
+            commandLine: planned?.display ?? command.displayCommand,
             status: .queued
         )
         tasks.insert(task, at: 0)
