@@ -5,6 +5,10 @@ struct ProjectBrowserView: View {
     @State private var currentDirectory: URL?
     @State private var selectedFile: URL?
     @State private var previewText: String?
+    @State private var isEditing = false
+    @State private var draftText = ""
+    @State private var pendingChange: ProjectFileChange?
+    @State private var reviewError: String?
 
     private var project: CODOProject? { store.selectedProject }
     private var entries: [CODOProjectFile] {
@@ -35,6 +39,22 @@ struct ProjectBrowserView: View {
         .onChange(of: store.selectedProjectID) { _, _ in resetBrowser() }
         .onAppear { resetBrowser() }
         .background(CODOTheme.background)
+        .sheet(item: $pendingChange) { change in
+            if let project, let root = store.projectRootURL(for: project) {
+                FileChangeReviewSheet(change: change, project: project, root: root) {
+                    previewText = change.proposedText
+                    isEditing = false
+                }
+            }
+        }
+        .alert("Could not prepare changes", isPresented: Binding(
+            get: { reviewError != nil },
+            set: { if !$0 { reviewError = nil } }
+        )) {
+            Button("OK", role: .cancel) { reviewError = nil }
+        } message: {
+            Text(reviewError ?? "Unknown error")
+        }
     }
 
     private var header: some View {
@@ -98,9 +118,11 @@ struct ProjectBrowserView: View {
                                 currentDirectory = entry.url
                                 selectedFile = nil
                                 previewText = nil
+                                isEditing = false
                             } else {
                                 selectedFile = entry.url
                                 previewText = store.textPreview(of: entry.url, in: project)
+                                isEditing = false
                             }
                         } label: {
                             HStack(spacing: 9) {
@@ -139,18 +161,40 @@ struct ProjectBrowserView: View {
                             Label(selectedFile.lastPathComponent, systemImage: "doc.text")
                                 .font(.system(size: 12, weight: .semibold))
                             Spacer()
-                            Text("Read-only preview")
-                                .font(.system(size: 10))
-                                .foregroundStyle(CODOTheme.mutedText)
+                            if isEditing {
+                                Button("Cancel") {
+                                    draftText = previewText
+                                    isEditing = false
+                                }
+                                .buttonStyle(.borderless)
+                                Button("Review changes") { prepareChange() }
+                                    .buttonStyle(AccentButtonStyle())
+                            } else {
+                                Text("Read-only preview")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(CODOTheme.mutedText)
+                                Button("Edit") {
+                                    draftText = previewText
+                                    isEditing = true
+                                }
+                                .buttonStyle(.bordered)
+                            }
                         }
                         .padding(14)
                         Divider().overlay(CODOTheme.border)
-                        ScrollView([.horizontal, .vertical]) {
-                            Text(previewText)
+                        if isEditing {
+                            TextEditor(text: $draftText)
                                 .font(.system(size: 12, design: .monospaced))
-                                .textSelection(.enabled)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(16)
+                                .scrollContentBackground(.hidden)
+                                .padding(10)
+                        } else {
+                            ScrollView([.horizontal, .vertical]) {
+                                Text(previewText)
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(16)
+                            }
                         }
                     }
                 } else {
@@ -164,11 +208,26 @@ struct ProjectBrowserView: View {
                 ContentUnavailableView(
                     "Select a File",
                     systemImage: "doc.text.magnifyingglass",
-                    description: Text("Choose a file to see a safe, read-only preview.")
+                    description: Text("Choose a file to preview or edit safely.")
                 )
             }
         }
         .background(CODOTheme.background)
+    }
+
+    private func prepareChange() {
+        guard let project, let selectedFile,
+              let root = store.projectRootURL(for: project) else { return }
+        do {
+            pendingChange = try ProjectFileChangeService.prepare(
+                file: selectedFile,
+                project: project,
+                root: root,
+                proposedText: draftText
+            )
+        } catch {
+            reviewError = error.localizedDescription
+        }
     }
 
     private func resetBrowser() {
@@ -176,11 +235,13 @@ struct ProjectBrowserView: View {
             currentDirectory = nil
             selectedFile = nil
             previewText = nil
+            isEditing = false
             return
         }
         currentDirectory = store.projectRootURL(for: project)?.standardizedFileURL
         selectedFile = nil
         previewText = nil
+        isEditing = false
     }
 
     private func navigateToParent(_ project: CODOProject) {
@@ -206,6 +267,86 @@ struct ProjectBrowserView: View {
         case "json", "plist", "yml", "yaml": "curlybraces"
         case "md", "txt": "doc.text"
         default: "doc"
+        }
+    }
+}
+
+
+private struct FileChangeReviewSheet: View {
+    let change: ProjectFileChange
+    let project: CODOProject
+    let root: URL
+    let onApplied: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var errorMessage: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Review file changes").font(.system(size: 18, weight: .semibold))
+                    Text(change.relativePath)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(CODOTheme.secondaryText)
+                }
+                Spacer()
+                Image(systemName: "shield.lefthalf.filled")
+                    .font(.system(size: 22))
+                    .foregroundStyle(CODOTheme.accent)
+            }
+
+            Text("Compare the original and proposed content. Applying creates a backup first. CODO will refuse to overwrite the file if it changed since this review was prepared.")
+                .font(.system(size: 11))
+                .foregroundStyle(CODOTheme.secondaryText)
+
+            HStack(spacing: 10) {
+                reviewColumn(title: "ORIGINAL", content: change.originalText)
+                reviewColumn(title: "PROPOSED", content: change.proposedText)
+            }
+            .frame(maxHeight: .infinity)
+
+            if let errorMessage {
+                Text(errorMessage).font(.system(size: 11)).foregroundStyle(CODOTheme.red)
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Approve and apply") { apply() }
+                    .buttonStyle(AccentButtonStyle())
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 760, minHeight: 520)
+        .background(CODOTheme.background)
+    }
+
+    private func reviewColumn(title: String, content: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.system(size: 10, weight: .bold)).tracking(1)
+                .foregroundStyle(CODOTheme.mutedText)
+            ScrollView([.horizontal, .vertical]) {
+                Text(content)
+                    .font(.system(size: 10, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+            }
+            .background(CODOTheme.elevated, in: RoundedRectangle(cornerRadius: 8))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func apply() {
+        do {
+            try ProjectFileChangeService.apply(change, project: project, root: root, approved: true)
+            onApplied()
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }
