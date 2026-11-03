@@ -22,7 +22,9 @@ Apple-native SwiftUI, system light/dark appearance, semantic AppKit colors, nati
 - [x] Explicit approval prompt before Xcode, Unity, web build and web test tasks
 - [x] Xcode Debug and Release build command planning
 - [x] Unity macOS batch build planning using an installed Unity Hub editor
-- [x] Web npm build/test script detection from package.json
+- [x] Web npm/yarn/pnpm build/test script detection from package.json and lockfiles
+- [x] Unity Hub editor discovery in standard system and user Applications locations
+- [x] Deterministic selection of the first shared Xcode scheme
 - [x] Build commands run directly as executable plus argument arrays, never through a shell
 - [x] File editor for supported text/source files up to 256 KB
 - [x] Side-by-side original/proposed content review before applying file edits
@@ -46,7 +48,8 @@ Current command execution uses fixed, typed command cases and Foundation Process
 
 ## Validation
 - Task Engine milestone CI: Debug and Release succeeded on commit b5c29334f5884adf3365529c7a11e1b95f565f75.
-- Command Approval + Build Engine changes are awaiting a fresh Debug and Release CI run.
+- An earlier Command Approval + Build Engine CI attempt exposed a Swift optional-chaining parse error in Xcode scheme discovery; the source was corrected in commit 3f8d93d.
+- Follow-up improvements add npm/yarn/pnpm detection and broader Unity Hub editor discovery. The newest combined commit still requires fresh Debug and Release CI.
 - Build adapters are implemented but have not yet been run against real Xcode, Unity or web projects on the user's Mac.
 - Physical Mac launch and visual validation have not been performed.
 
