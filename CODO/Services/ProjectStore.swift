@@ -122,10 +122,16 @@ final class ProjectStore: ObservableObject {
         } ?? nil
     }
 
-    func developerIntelligence(_ project: CODOProject) -> DeveloperIntelligenceReport? {
-        withProjectAccess(project) { root in
-            DeveloperIntelligenceService.analyze(root: root, projectName: project.name)
-        } ?? nil
+    func developerIntelligence(_ project: CODOProject) async -> DeveloperIntelligenceReport? {
+        guard let root = projectRootURL(for: project)?.standardizedFileURL else { return nil }
+        let needsScope = project.bookmarkData != nil
+        let projectName = project.name
+        return await Task.detached(priority: .userInitiated) {
+            let didStart = needsScope ? root.startAccessingSecurityScopedResource() : false
+            if needsScope && !didStart { return nil as DeveloperIntelligenceReport? }
+            defer { if didStart { root.stopAccessingSecurityScopedResource() } }
+            return DeveloperIntelligenceService.analyze(root: root, projectName: projectName)
+        }.value
     }
 
     func projectMemory(_ project: CODOProject) -> ProjectMemory {
