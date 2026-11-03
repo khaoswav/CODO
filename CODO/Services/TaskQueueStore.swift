@@ -42,6 +42,7 @@ final class TaskQueueStore: ObservableObject {
         let command: ProjectCommand
         let project: CODOProject
         let root: URL
+        let approvalGranted: Bool
     }
 
     init() {
@@ -96,7 +97,7 @@ final class TaskQueueStore: ObservableObject {
             status: .queued
         )
         tasks.insert(task, at: 0)
-        pending.append(PendingCommand(taskID: task.id, command: command, project: project, root: root))
+        pending.append(PendingCommand(taskID: task.id, command: command, project: project, root: root, approvalGranted: approvalGranted))
         trimHistory()
         persist()
         runNext()
@@ -134,7 +135,7 @@ final class TaskQueueStore: ObservableObject {
         tasks[index].status = .running
         tasks[index].startedAt = .now
         persist()
-        runner.run(next.command, for: next.project, root: next.root)
+        runner.run(next.command, for: next.project, root: next.root, approvalGranted: next.approvalGranted)
         processStatus = runner.status
     }
 
