@@ -142,7 +142,7 @@ struct DeveloperIntelligenceView: View {
             HStack(spacing: 10) {
                 metric(String(report.files.count), label: "FILES")
                 metric(String(report.totalLines), label: "LINES")
-                metric(String(report.dependencies.count), label: "LINKS")
+                metric(String(report.graphEdges.count), label: "LOCAL EDGES")
                 metric(String(report.findings.count), label: "FINDINGS")
             }
             if report.truncated {
