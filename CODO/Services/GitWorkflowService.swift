@@ -94,10 +94,6 @@ final class GitWorkflowService: ObservableObject {
         guard !isRunning else { statusMessage = "A Git operation is already running."; return }
         guard approvalGranted else { statusMessage = "This Git operation requires explicit approval."; return }
         let directory = root.standardizedFileURL
-        guard FileManager.default.fileExists(atPath: directory.appendingPathComponent(".git").path) else {
-            statusMessage = "This project does not contain a .git repository."
-            return
-        }
         let needsScope = project.bookmarkData != nil
         if needsScope && !directory.startAccessingSecurityScopedResource() {
             statusMessage = "Project folder access was denied."
