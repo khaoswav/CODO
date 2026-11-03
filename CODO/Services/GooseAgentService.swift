@@ -77,7 +77,22 @@ final class GooseAgentService: ObservableObject {
     private var pipe: Pipe?
     private var scopedRoot: URL?
 
-    var configuration = GooseConfiguration()
+    var configuration: GooseConfiguration {
+        didSet {
+            if let data = try? JSONEncoder().encode(configuration) {
+                UserDefaults.standard.set(data, forKey: "goose.configuration")
+            }
+        }
+    }
+
+    init() {
+        if let data = UserDefaults.standard.data(forKey: "goose.configuration"),
+           let saved = try? JSONDecoder().decode(GooseConfiguration.self, from: data) {
+            configuration = saved
+        } else {
+            configuration = GooseConfiguration()
+        }
+    }
     var onOutput: ((String) -> Void)?
     var onCompletion: ((Int32) -> Void)?
 
