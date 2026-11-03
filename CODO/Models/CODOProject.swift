@@ -43,7 +43,13 @@ enum ProjectKind: String, Codable, CaseIterable, Identifiable {
     static func detect(at url: URL) -> ProjectKind {
         let contents = (try? FileManager.default.contentsOfDirectory(atPath: url.path)) ?? []
         let names = Set(contents.map { $0.lowercased() })
-        if names.contains(where: { $0.hasSuffix(".xcodeproj") || $0.hasSuffix(".xcworkspace") }) { return .iOS }
+        if let projectBundle = contents.first(where: { $0.lowercased().hasSuffix(".xcodeproj") }),
+           let projectData = try? String(contentsOf: url.appendingPathComponent(projectBundle).appendingPathComponent("project.pbxproj"), encoding: .utf8) {
+            if projectData.contains("SDKROOT = macosx") || projectData.contains("SUPPORTED_PLATFORMS = macosx") { return .macOS }
+            if projectData.contains("SDKROOT = iphoneos") || projectData.contains("SUPPORTED_PLATFORMS = \\"iphoneos") { return .iOS }
+            return .other
+        }
+        if names.contains(where: { $0.hasSuffix(".xcworkspace") }) { return .other }
         if names.contains("assets") && names.contains("projectsettings") { return .unity }
         if names.contains("package.json") || names.contains("vite.config.js") || names.contains("vite.config.ts") { return .web }
         return .other
