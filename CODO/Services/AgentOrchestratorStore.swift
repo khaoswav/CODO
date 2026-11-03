@@ -166,9 +166,16 @@ final class AgentOrchestratorStore: ObservableObject {
     }
 
     func resumeForFix() {
-        guard let workflowIndex = activeWorkflowIndex else { return }
+        // A failed workflow is kept as history after relaunch, so it may no longer
+        // have an activeWorkflowID. Re-select the newest failed workflow when needed.
+        guard let workflowIndex = activeWorkflowIndex ?? workflows.firstIndex(where: {
+            $0.status == .failed && $0.steps.contains(where: {
+                $0.title.localizedCaseInsensitiveContains("Implement")
+            })
+        }) else { return }
+        activeWorkflowID = workflows[workflowIndex].id
         guard let implementationIndex = workflows[workflowIndex].steps.firstIndex(where: {
-            $0.title.localizedCaseInsensitiveContains("Implement the change")
+            $0.title.localizedCaseInsensitiveContains("Implement")
         }) else { return }
         for index in workflows[workflowIndex].steps.indices {
             if index >= implementationIndex {
