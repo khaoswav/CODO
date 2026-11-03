@@ -330,6 +330,9 @@ struct DeveloperIntelligenceTests {
         try expect(release?.arguments.contains("Release") == true, "Release action must select Release configuration")
         try expect(debug?.arguments.contains("Alpha") == true, "Shared schemes should be selected deterministically by name")
         try expect(debug?.arguments.contains("-project") == true, "Xcode project containers should use the -project argument")
+        try expect(debug?.arguments.contains("macosx") == true, "macOS builds must select the macOS SDK explicitly")
+        try expect(debug?.arguments.contains("platform=macOS,arch=arm64") == true,
+                   "macOS builds must select a deterministic Apple Silicon destination")
 
         let empty = FileManager.default.temporaryDirectory
             .appendingPathComponent("CODO-NoXcode-Test-\(UUID().uuidString)", isDirectory: true)

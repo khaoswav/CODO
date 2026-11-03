@@ -140,3 +140,14 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - Build diagnostics are locally fingerprinted and categorized using deterministic rules; suggested fixes are guidance, not guaranteed root-cause proof.
 - File apply and build/test remain approval-gated. Goose's analysis-only prompt is not a hard sandbox.
 - Physical Mac launch, visual inspection and real project execution have not yet been performed.
+
+
+## Build adapter end-to-end infrastructure (PR #4)
+- [x] Add an injectable Unity editor search-root seam so the Unity command contract can be tested without depending on a machine-global installation.
+- [x] Add a temporary Unity project fixture with a mock Editor executable; execute the planned argument vector and verify batch mode, project path, macOS target and output arguments.
+- [x] Add a temporary web project fixture and execute its actual npm build and test scripts, verifying the generated build artifact.
+- [x] Execute the actual repository's CODO.xcodeproj build through ProjectBuildPlanner for the Debug/Release CI matrix.
+- [x] Keep all fixture files in temporary directories and avoid mutating user projects.
+- [x] Verify the end-to-end harness in GitHub Actions for both Debug and Release (runs 41733102435 and timeout-hardened run 41733542952 passed both configurations).
+- [ ] Run the adapters against the user's actual Xcode, Unity and web projects on the physical Mac. The Unity CI fixture validates invocation only; it does not replace a licensed Unity Editor build.
+- [x] Add subprocess timeouts to the E2E harness and verify the timeout-hardened implementation in Debug and Release CI (run 41733542952).
