@@ -97,6 +97,7 @@ struct WorkspaceView: View {
         }
         .alert("Allow Goose to analyze this project?", isPresented: $showRunApproval) {
             Button("Cancel", role: .cancel) {
+                isFixRequest = false
                 orchestrator.failCurrentStep("Agent run cancelled by the user.")
             }
             Button("Approve analysis") { startAnalysis() }
