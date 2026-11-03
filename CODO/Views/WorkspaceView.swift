@@ -55,13 +55,14 @@ struct WorkspaceView: View {
                         }
                         fixAttempts += 1
                         isFixRequest = true
+                        let safeLog = BuildFailureAnalyzer.sanitizeLog(log)
                         prompt = """
                         The previously approved changes failed during build or test.
                         Analyze this failure log and propose the smallest safe unified diff.
                         Do not edit files or run commands. Return only reviewable proposals.
 
                         BUILD / TEST LOG:
-                        \(String(log.suffix(24_000)))
+                        \(String(safeLog.suffix(24_000)))
                         """
                         showRunApproval = true
                     },
