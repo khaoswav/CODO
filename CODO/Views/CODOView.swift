@@ -39,7 +39,7 @@ struct CODOView: View {
                     case .project: ProjectOverviewView()
                     case .workspace: WorkspaceView()
                     case .terminal: TerminalView()
-                    case .activity: ActivityPlaceholderView()
+                    case .activity: ActivityView()
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
