@@ -214,6 +214,21 @@ struct DeveloperIntelligenceTests {
         let implementationStatus = resumedWorkflow?.steps.first(where: { $0.title.contains("Implement") })?.status
         try expect(implementationStatus == .running,
                    "Fix retry should reselect the persisted failed workflow and restart at implementation; workflows=\(recovered.workflows.count), active=\(String(describing: resumedWorkflow?.status)), implementation=\(String(describing: implementationStatus))")
+        let understanding = resumedWorkflow?.steps.first(where: { $0.title == "Understand the request" })
+        let planning = resumedWorkflow?.steps.first(where: { $0.title == "Plan the implementation" })
+        let implementation = resumedWorkflow?.steps.first(where: { $0.title == "Implement the change" })
+        try expect(understanding?.status == .succeeded && planning?.status == .succeeded,
+                   "Recovery must preserve completed Understand and Plan stages")
+        try expect(understanding?.attemptCount == 1 && planning?.attemptCount == 1,
+                   "Recovery must not rerun or increment completed stage attempts")
+        try expect(implementation?.attemptCount == 2,
+                   "Recovery must increment only the restarted Implementer attempt")
+        let restoredContext = recovered.completedStageContext
+        try expect(restoredContext.contains("ARCHITECTURE_CONTEXT") &&
+                   restoredContext.contains("PLAN_CONTEXT"),
+                   "Implementer recovery context must include both completed stage outputs")
+        try expect(!restoredContext.contains("super-secret-agent-output"),
+                   "Recovered stage context must remain credential-redacted")
         recovered.proposalReady()
         recovered.completeCurrentAndAdvance("AI review complete.")
         recovered.reviewCompleted(appliedCount: 1, rejectedCount: 0)

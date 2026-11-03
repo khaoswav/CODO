@@ -170,3 +170,11 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - [x] Corrected PR #6 recovery assertions to use the actual persisted stage titles: "Understand the request", "Plan the implementation", and "Implement the change".
 - [ ] PRs remain open and draft. No merge has been authorized or performed.
 - [ ] Real provider-backed Goose execution and physical Mac validation remain intentionally deferred.
+
+
+## PR #6 rebased recovery validation
+- [x] Rebase the PR #6 recovery regression onto the latest PR #5 head without merging either PR.
+- [x] Preserve completed Understand/Plan stage status and attempt-count assertions.
+- [x] Preserve restored stage-context and credential-redaction assertions.
+- [x] Verify the rebased recovery regression in GitHub Actions Debug and Release (run 41736781378: Debug and Release succeeded, including Developer Intelligence and Build Adapter E2E).
+- [ ] Full provider-backed Goose workflow and physical Mac validation remain deferred.
