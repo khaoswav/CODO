@@ -23,6 +23,88 @@ struct IntelligenceGraphEdge: Identifiable, Codable, Hashable {
     var id: String { sourceFile + "->" + targetFile + ":" + importedSymbol }
 }
 
+struct IntelligenceGraphNode: Identifiable, Hashable {
+    let path: String
+    let layer: Int
+    let x: Double
+    let y: Double
+    var id: String { path }
+}
+
+enum IntelligenceGraphLayout {
+    static func layout(
+        files: [IntelligenceFile],
+        edges: [IntelligenceGraphEdge],
+        limit: Int = 32
+    ) -> [IntelligenceGraphNode] {
+        guard limit > 0, !files.isEmpty, !edges.isEmpty else { return [] }
+        let available = Set(files.map(\.path))
+        let validEdges = edges.filter {
+            available.contains($0.sourceFile) && available.contains($0.targetFile) &&
+            $0.sourceFile != $0.targetFile
+        }
+        guard !validEdges.isEmpty else { return [] }
+
+        var degree: [String: Int] = [:]
+        for edge in validEdges {
+            degree[edge.sourceFile, default: 0] += 1
+            degree[edge.targetFile, default: 0] += 1
+        }
+        let selected = Array(available.sorted {
+            let left = degree[$0, default: 0]
+            let right = degree[$1, default: 0]
+            return left == right ? $0 < $1 : left > right
+        }.prefix(limit))
+        let selectedSet = Set(selected)
+        let selectedEdges = validEdges.filter {
+            selectedSet.contains($0.sourceFile) && selectedSet.contains($0.targetFile)
+        }
+
+        var outgoing: [String: [String]] = [:]
+        var indegree = Dictionary(uniqueKeysWithValues: selected.map { ($0, 0) })
+        for edge in selectedEdges {
+            outgoing[edge.sourceFile, default: []].append(edge.targetFile)
+            indegree[edge.targetFile, default: 0] += 1
+        }
+
+        var layers = Dictionary(uniqueKeysWithValues: selected.map { ($0, 0) })
+        var ready = selected.filter { indegree[$0, default: 0] == 0 }.sorted()
+        var visited = Set<String>()
+        while !ready.isEmpty {
+            let current = ready.removeFirst()
+            visited.insert(current)
+            for target in (outgoing[current] ?? []).sorted() {
+                layers[target] = max(layers[target, default: 0], layers[current, default: 0] + 1)
+                indegree[target, default: 0] -= 1
+                if indegree[target] == 0 {
+                    ready.append(target)
+                    ready.sort()
+                }
+            }
+        }
+
+        let cycleLayer = (layers.values.max() ?? 0) + 1
+        for path in selected where !visited.contains(path) {
+            layers[path] = cycleLayer
+        }
+
+        let grouped = Dictionary(grouping: selected, by: { layers[$0, default: 0] })
+        let maximumLayer = max(0, grouped.keys.max() ?? 0)
+        return selected.sorted {
+            let left = layers[$0, default: 0]
+            let right = layers[$1, default: 0]
+            return left == right ? $0 < $1 : left < right
+        }.map { path in
+            let layer = layers[path, default: 0]
+            let siblings = (grouped[layer] ?? []).sorted()
+            let row = siblings.firstIndex(of: path) ?? 0
+            let x = maximumLayer == 0 ? 0.5 : 0.10 + (Double(layer) / Double(maximumLayer)) * 0.80
+            let y = Double(row + 1) / Double(siblings.count + 1)
+            return IntelligenceGraphNode(path: path, layer: layer, x: x, y: y)
+        }
+    }
+}
+
 struct IntelligenceFinding: Identifiable, Codable {
     enum Severity: String, Codable {
         case info = "Info"

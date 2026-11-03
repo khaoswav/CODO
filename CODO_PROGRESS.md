@@ -103,4 +103,32 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - Physical Mac launch and visual validation have not been performed.
 
 ## Next
-Add automated tests for unified diff parsing, command approval, build planning and Git workflow safety. Then validate the sequential Goose roles, real Xcode/Unity/web builds and authenticated GitHub CLI on a physical Mac.
+- [ ] Physically launch CODO on the user's Mac and inspect the native dependency graph.
+- [ ] Validate the graph against representative Swift, Unity C# and web projects.
+- [ ] Run the complete sequential Goose workflow with a configured provider, including patch review, approved build, cancellation and build-fix retry.
+- [ ] Validate real Xcode, Unity and web build adapters plus authenticated GitHub CLI on the user's Mac.
+- [ ] After PR #1 is merged, re-check PR #2's base/diff and finalize the dependent change.
+
+
+## Developer Intelligence Graph + Agent Orchestrator refinement
+- [x] Add deterministic directed graph layout from resolved local import/include edges.
+- [x] Render a native SwiftUI Canvas dependency graph with arrow direction, connected-file prioritization and bounded node/edge counts.
+- [x] Keep ambiguous and external imports out of the local source graph instead of inventing links.
+- [x] Persist per-step attempt counts, sanitized output excerpts, result summaries and error messages.
+- [x] Keep the initial Goose stage in an explicit awaiting-approval state until the user approves the run.
+- [x] Track explicit cancelled workflow/step states and cancel downstream pending stages when a workflow is stopped or superseded.
+- [x] Connect Goose architect, planner, implementer and reviewer completions to orchestrator state transitions and saved output.
+- [x] Connect build success, build failure and cancellation events to the matching orchestrator step.
+- [x] Allow an explicitly requested build-fix retry to recover a persisted failed workflow after relaunch and restart at the Implementer stage.
+- [x] Restore the completed Architect and Planner output excerpts into the Implementer context after a build-fix retry or app relaunch.
+- [x] Redact credential-like values before Goose build-log handoff and before saving step output excerpts.
+- [x] Expand automated coverage for dependency graph direction, project scanning, build-log fingerprinting/redaction, workflow persistence/recovery, retry counts and cancellation.
+- [x] Verify the latest refinement head with the full Debug and Release CI run: run 41730013779 passed all 8 test groups and both Debug/Release Xcode builds.
+- [ ] Validate the rendered graph and live Goose workflow on the user's physical Mac.
+
+### Scope and limits
+- The graph is a static import/include dependency view. It is not a compiler-generated symbol graph and does not infer runtime call relationships.
+- The role-based Goose pipeline runs stages sequentially through the configured Goose CLI. It is not parallel multi-process subagent execution.
+- Build diagnostics are locally fingerprinted and categorized using deterministic rules; suggested fixes are guidance, not guaranteed root-cause proof.
+- File apply and build/test remain approval-gated. Goose's analysis-only prompt is not a hard sandbox.
+- Physical Mac launch, visual inspection and real project execution have not yet been performed.

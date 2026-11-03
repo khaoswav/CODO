@@ -6,6 +6,7 @@ enum AgentWorkflowStatus: String, Codable {
     case awaitingApproval = "Awaiting approval"
     case succeeded = "Succeeded"
     case failed = "Failed"
+    case cancelled = "Cancelled"
 }
 
 enum AgentStepStatus: String, Codable {
@@ -14,6 +15,7 @@ enum AgentStepStatus: String, Codable {
     case awaitingApproval = "Awaiting approval"
     case succeeded = "Succeeded"
     case failed = "Failed"
+    case cancelled = "Cancelled"
 }
 
 struct AgentWorkflowStep: Identifiable, Codable {
@@ -25,6 +27,9 @@ struct AgentWorkflowStep: Identifiable, Codable {
     var startedAt: Date?
     var finishedAt: Date?
     var resultSummary: String?
+    var attemptCount: Int? = 0
+    var outputExcerpt: String? = nil
+    var errorMessage: String? = nil
 }
 
 struct AgentWorkflow: Identifiable, Codable {
@@ -71,14 +76,19 @@ final class AgentOrchestratorStore: ObservableObject {
     @discardableResult
     func start(project: CODOProject, request: String, plan: [IntelligencePlanStep]) -> UUID {
         if let previous = activeWorkflowIndex, isWorkflowActive {
-            workflows[previous].status = .failed
+            workflows[previous].status = .cancelled
             workflows[previous].lastFailure = "Superseded by a newer workflow."
             if let running = workflows[previous].steps.firstIndex(where: {
                 $0.status == .running || $0.status == .awaitingApproval
             }) {
-                workflows[previous].steps[running].status = .failed
+                workflows[previous].steps[running].status = .cancelled
                 workflows[previous].steps[running].finishedAt = .now
                 workflows[previous].steps[running].resultSummary = "Superseded by a newer workflow."
+            }
+            for index in workflows[previous].steps.indices where workflows[previous].steps[index].status == .pending {
+                workflows[previous].steps[index].status = .cancelled
+                workflows[previous].steps[index].finishedAt = .now
+                workflows[previous].steps[index].resultSummary = "Cancelled because a newer workflow replaced this one."
             }
             touchAndPersist(previous)
         }
@@ -90,11 +100,10 @@ final class AgentOrchestratorStore: ObservableObject {
             projectName: project.name,
             request: request,
             steps: steps,
-            status: .running
+            status: .awaitingApproval
         )
         if !workflow.steps.isEmpty {
-            workflow.steps[0].status = .running
-            workflow.steps[0].startedAt = .now
+            workflow.steps[0].status = .awaitingApproval
         }
         workflows.insert(workflow, at: 0)
         activeWorkflowID = workflow.id
@@ -105,15 +114,23 @@ final class AgentOrchestratorStore: ObservableObject {
 
     var currentStepTitle: String? { activeStep?.title }
 
-    func completeCurrentAndAdvance(_ summary: String) {
+    var completedStageContext: String {
+        guard let workflow = activeWorkflow else { return "" }
+        return workflow.steps
+            .filter { $0.status == .succeeded && !($0.outputExcerpt ?? "").isEmpty }
+            .map { "STAGE: " + $0.title + "\n" + ($0.outputExcerpt ?? "") }
+            .joined(separator: "\n\n")
+    }
+
+    func completeCurrentAndAdvance(_ summary: String, output: String? = nil) {
         guard isWorkflowActive else { return }
-        completeCurrentStep(summary)
+        completeCurrentStep(summary, output: output)
         advanceToNextStep()
     }
 
-    func proposalReady() {
+    func proposalReady(output: String? = nil) {
         guard isWorkflowActive else { return }
-        completeCurrentStep("Goose returned a proposal. No files were changed automatically.")
+        completeCurrentStep("Goose returned a proposal. No files were changed automatically.", output: output)
         advanceToNextStep()
     }
 
@@ -122,18 +139,38 @@ final class AgentOrchestratorStore: ObservableObject {
         completeCurrentStep("\(appliedCount) file(s) applied, \(rejectedCount) rejected.")
         if appliedCount == 0 {
             for index in workflows[workflowIndex].steps.indices where workflows[workflowIndex].steps[index].status == .pending {
-                workflows[workflowIndex].steps[index].status = .succeeded
+                workflows[workflowIndex].steps[index].status = .cancelled
                 workflows[workflowIndex].steps[index].finishedAt = .now
-                workflows[workflowIndex].steps[index].resultSummary = "Skipped because no changes were applied."
+                workflows[workflowIndex].steps[index].resultSummary = "Skipped because no approved changes were applied."
             }
-            finishIfComplete()
+            workflows[workflowIndex].status = .cancelled
+            activeWorkflowID = nil
+            touchAndPersist(workflowIndex)
         } else {
             advanceToNextStep()
         }
     }
 
-    func failCurrentStep(_ summary: String) {
-        buildFailed(summary)
+    func failCurrentStep(_ summary: String, output: String? = nil) {
+        buildFailed(summary, output: output)
+    }
+
+    func cancelCurrentStep(_ summary: String, output: String? = nil) {
+        guard isWorkflowActive, let workflowIndex = activeWorkflowIndex, let stepIndex = activeStepIndex else { return }
+        workflows[workflowIndex].steps[stepIndex].status = .cancelled
+        workflows[workflowIndex].steps[stepIndex].finishedAt = .now
+        workflows[workflowIndex].steps[stepIndex].resultSummary = summary
+        workflows[workflowIndex].steps[stepIndex].outputExcerpt = sanitizedExcerpt(output)
+        for index in workflows[workflowIndex].steps.indices where index > stepIndex &&
+            workflows[workflowIndex].steps[index].status == .pending {
+            workflows[workflowIndex].steps[index].status = .cancelled
+            workflows[workflowIndex].steps[index].finishedAt = .now
+            workflows[workflowIndex].steps[index].resultSummary = "Cancelled because the workflow was stopped."
+        }
+        workflows[workflowIndex].lastFailure = summary
+        workflows[workflowIndex].status = .cancelled
+        activeWorkflowID = nil
+        touchAndPersist(workflowIndex)
     }
 
     func approveCurrentStep() {
@@ -141,13 +178,14 @@ final class AgentOrchestratorStore: ObservableObject {
         guard workflows[workflowIndex].steps[index].status == .awaitingApproval else { return }
         workflows[workflowIndex].steps[index].status = .running
         workflows[workflowIndex].steps[index].startedAt = .now
+        workflows[workflowIndex].steps[index].attemptCount = (workflows[workflowIndex].steps[index].attemptCount ?? 0) + 1
         workflows[workflowIndex].status = .running
         touchAndPersist(workflowIndex)
     }
 
-    func buildSucceeded() {
+    func buildSucceeded(output: String? = nil) {
         guard isWorkflowActive else { return }
-        completeCurrentStep("Approved build/test completed successfully.")
+        completeCurrentStep("Approved build/test completed successfully.", output: output)
         advanceToNextStep()
         if activeStep != nil {
             completeCurrentStep("Outcome recorded in project activity.")
@@ -155,11 +193,13 @@ final class AgentOrchestratorStore: ObservableObject {
         finishIfComplete()
     }
 
-    func buildFailed(_ summary: String) {
+    func buildFailed(_ summary: String, output: String? = nil) {
         guard isWorkflowActive, let index = activeWorkflowIndex, let step = activeStepIndex else { return }
         workflows[index].steps[step].status = .failed
         workflows[index].steps[step].finishedAt = .now
         workflows[index].steps[step].resultSummary = summary
+        workflows[index].steps[step].errorMessage = summary
+        workflows[index].steps[step].outputExcerpt = sanitizedExcerpt(output)
         workflows[index].lastFailure = summary
         workflows[index].status = .failed
         touchAndPersist(index)
@@ -183,10 +223,13 @@ final class AgentOrchestratorStore: ObservableObject {
                 workflows[workflowIndex].steps[index].startedAt = nil
                 workflows[workflowIndex].steps[index].finishedAt = nil
                 workflows[workflowIndex].steps[index].resultSummary = nil
+                workflows[workflowIndex].steps[index].outputExcerpt = nil
+                workflows[workflowIndex].steps[index].errorMessage = nil
             }
         }
         workflows[workflowIndex].steps[implementationIndex].status = .running
         workflows[workflowIndex].steps[implementationIndex].startedAt = .now
+        workflows[workflowIndex].steps[implementationIndex].attemptCount = (workflows[workflowIndex].steps[implementationIndex].attemptCount ?? 0) + 1
         workflows[workflowIndex].lastFailure = nil
         workflows[workflowIndex].status = .running
         touchAndPersist(workflowIndex)
@@ -207,12 +250,19 @@ final class AgentOrchestratorStore: ObservableObject {
         return workflow.steps[index]
     }
 
-    private func completeCurrentStep(_ summary: String) {
+    private func completeCurrentStep(_ summary: String, output: String? = nil) {
         guard let workflowIndex = activeWorkflowIndex, let stepIndex = activeStepIndex else { return }
         workflows[workflowIndex].steps[stepIndex].status = .succeeded
         workflows[workflowIndex].steps[stepIndex].finishedAt = .now
         workflows[workflowIndex].steps[stepIndex].resultSummary = summary
+        workflows[workflowIndex].steps[stepIndex].outputExcerpt = sanitizedExcerpt(output)
+        workflows[workflowIndex].steps[stepIndex].errorMessage = nil
         touchAndPersist(workflowIndex)
+    }
+
+    private func sanitizedExcerpt(_ output: String?) -> String? {
+        guard let output, !output.isEmpty else { return nil }
+        return BuildFailureAnalyzer.sanitizeLog(String(output.suffix(5_000)))
     }
 
     private func advanceToNextStep() {
@@ -227,6 +277,7 @@ final class AgentOrchestratorStore: ObservableObject {
         } else {
             workflows[workflowIndex].steps[next].status = .running
             workflows[workflowIndex].steps[next].startedAt = .now
+            workflows[workflowIndex].steps[next].attemptCount = (workflows[workflowIndex].steps[next].attemptCount ?? 0) + 1
             workflows[workflowIndex].status = .running
         }
         touchAndPersist(workflowIndex)
@@ -263,6 +314,7 @@ final class AgentOrchestratorStore: ObservableObject {
                     restored.steps[index].status = .failed
                     restored.steps[index].finishedAt = .now
                     restored.steps[index].resultSummary = restored.lastFailure
+                    restored.steps[index].errorMessage = restored.lastFailure
                 }
             }
             return restored

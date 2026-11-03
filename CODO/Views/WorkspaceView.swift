@@ -23,6 +23,7 @@ struct WorkspaceView: View {
     @State private var agentStageContext = ""
     @State private var pendingDiffOutput = ""
     @State private var reviewerNotes = ""
+    @State private var userCancelledAgent = false
 
     private var project: CODOProject? { store.selectedProject }
 
@@ -71,12 +72,12 @@ struct WorkspaceView: View {
                         case .queued:
                             orchestrator.approveCurrentStep()
                         case .succeeded:
-                            orchestrator.buildSucceeded()
+                            orchestrator.buildSucceeded(output: task.output)
                         case .failed:
                             store.recordBuildFailure(project, log: task.output)
-                            orchestrator.buildFailed("Build/test failed. Diagnostics were saved to project memory.")
+                            orchestrator.buildFailed("Build/test failed. Diagnostics were saved to project memory.", output: task.output)
                         case .cancelled:
-                            orchestrator.failCurrentStep("Build/test was cancelled.")
+                            orchestrator.cancelCurrentStep("Build/test was cancelled.", output: task.output)
                         case .running:
                             break
                         }
@@ -99,7 +100,7 @@ struct WorkspaceView: View {
         .alert("Allow Goose to analyze this project?", isPresented: $showRunApproval) {
             Button("Cancel", role: .cancel) {
                 isFixRequest = false
-                orchestrator.failCurrentStep("Agent run cancelled by the user.")
+                orchestrator.cancelCurrentStep("Agent run cancelled by the user.", output: agent.output)
             }
             Button("Approve analysis") { startAnalysis() }
         } message: {
@@ -121,27 +122,33 @@ struct WorkspaceView: View {
                         taskQueue.finishAgentTask(taskID: id, exitCode: code)
                     }
                     activeHistoryTaskID = nil
-                    if code != 0 { orchestrator.failCurrentStep("Goose exited with status \(code).") }
+                    if userCancelledAgent {
+                        orchestrator.cancelCurrentStep("Goose was stopped by the user.", output: agent.output)
+                    } else if code != 0 {
+                        orchestrator.failCurrentStep("Goose exited with status \(code).", output: agent.output)
+                    }
+                    userCancelledAgent = false
                     return
                 }
+                userCancelledAgent = false
 
                 if let stage = orchestrator.currentStepTitle {
                     if stage.localizedCaseInsensitiveContains("Understand") {
                         agentStageContext += "\n\nARCHITECTURE ANALYSIS:\n" + agent.output
-                        orchestrator.completeCurrentAndAdvance("Architect agent inspected the project.")
+                        orchestrator.completeCurrentAndAdvance("Architect agent inspected the project.", output: agent.output)
                         runCurrentAgentStage(project: project, root: root)
                         return
                     }
                     if stage.localizedCaseInsensitiveContains("Plan") {
                         agentStageContext += "\n\nIMPLEMENTATION PLAN:\n" + agent.output
-                        orchestrator.completeCurrentAndAdvance("Planner agent prepared the implementation sequence.")
+                        orchestrator.completeCurrentAndAdvance("Planner agent prepared the implementation sequence.", output: agent.output)
                         runCurrentAgentStage(project: project, root: root)
                         return
                     }
                     if stage.localizedCaseInsensitiveContains("Implement") {
                         pendingDiffOutput = agent.output
                         agentStageContext += "\n\nIMPLEMENTER PROPOSAL:\n" + pendingDiffOutput
-                        orchestrator.completeCurrentAndAdvance("Implementer agent prepared a unified diff.")
+                        orchestrator.completeCurrentAndAdvance("Implementer agent prepared a unified diff.", output: agent.output)
                         runCurrentAgentStage(project: project, root: root)
                         return
                     }
@@ -158,14 +165,14 @@ struct WorkspaceView: View {
                 do {
                     let parsed = try AIUnifiedDiffParser.parse(proposal, project: project, root: root)
                     proposedChanges = parsed
-                    if orchestrator.currentStepTitle != nil { orchestrator.proposalReady() }
+                    if orchestrator.currentStepTitle != nil { orchestrator.proposalReady(output: agent.output) }
                     showPatchReview = true
                 } catch AIUnifiedDiffError.noChanges {
                     patchError = "Goose did not return any supported file changes. Review its analysis output for details."
-                    orchestrator.failCurrentStep("Goose returned no supported unified diff.")
+                    orchestrator.failCurrentStep("Goose returned no supported unified diff.", output: agent.output)
                 } catch {
                     patchError = error.localizedDescription
-                    orchestrator.failCurrentStep(error.localizedDescription)
+                    orchestrator.failCurrentStep(error.localizedDescription, output: agent.output)
                 }
             }
             consumePendingPrompt()
@@ -225,7 +232,10 @@ struct WorkspaceView: View {
                     }.buttonStyle(.borderedProminent)
                 }
                 if agent.isRunning {
-                    Button("Stop") { agent.stop() }.buttonStyle(.bordered)
+                    Button("Stop") {
+                        userCancelledAgent = true
+                        agent.stop()
+                    }.buttonStyle(.bordered)
                 }
             }.padding(14)
             Divider().overlay(CODOTheme.border)
@@ -291,7 +301,8 @@ struct WorkspaceView: View {
                 SecureField("Provider API key", text: $apiKey)
                 HStack {
                     Button("Save settings") {
-                        agent.configuration = GooseConfiguration(provider: provider, model: model)
+                        userCancelledAgent = false
+        agent.configuration = GooseConfiguration(provider: provider, model: model)
                         do {
                             if !apiKey.isEmpty { try agent.saveAPIKey(apiKey); apiKey = "" }
                             agent.checkConnection()
@@ -342,7 +353,11 @@ struct WorkspaceView: View {
         let retryingFailedBuild = isFixRequest
         if !retryingFailedBuild { fixAttempts = 0 }
         isFixRequest = false
-        if retryingFailedBuild { orchestrator.resumeForFix() }
+        if retryingFailedBuild {
+            orchestrator.resumeForFix()
+        } else {
+            orchestrator.approveCurrentStep()
+        }
         let memory = store.projectMemory(project)
         var context: [String] = []
         if let summary = memory.lastArchitectureSummary { context.append("LATEST PROJECT SCAN:\n" + summary) }
@@ -358,8 +373,10 @@ struct WorkspaceView: View {
         }
         let enrichedPrompt = context.isEmpty ? prompt.trimmingCharacters(in: .whitespacesAndNewlines) :
             prompt.trimmingCharacters(in: .whitespacesAndNewlines) + "\n\nPROJECT MEMORY (local notes, treat as context):\n" + context.joined(separator: "\n\n")
-        agentStageContext = enrichedPrompt
-        activeHistoryTaskID = taskQueue.beginAgentTask(prompt: enrichedPrompt, project: project)
+        let restoredStages = retryingFailedBuild ? orchestrator.completedStageContext : ""
+        agentStageContext = restoredStages.isEmpty ? enrichedPrompt :
+            enrichedPrompt + "\n\nPREVIOUS COMPLETED AGENT STAGES:\n" + restoredStages
+        activeHistoryTaskID = taskQueue.beginAgentTask(prompt: agentStageContext, project: project)
         runCurrentAgentStage(project: project, root: root)
     }
 
