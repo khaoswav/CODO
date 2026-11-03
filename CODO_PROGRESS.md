@@ -40,14 +40,18 @@ Apple-native SwiftUI, system light/dark appearance, semantic AppKit colors, nati
 - [ ] Improve Xcode scheme selection and build result parsing
 - [x] Add project-wide source/config inventory with file, line and language metrics
 - [x] Build source import/include and package dependency links
+- [x] Resolve unambiguous local Swift and relative ES module imports into file-to-file graph edges
+- [x] Add local build failure fingerprints, common compiler-error classification, next-step hints and credential redaction
+- [x] Add persisted sequential Architect, Planner, Implementer and Reviewer Goose roles with stage status, approval gates and retry recovery
 - [x] Add static code-quality and performance heuristics, including TODOs, force unwraps, debug output, blocking I/O, deadlock patterns and embedded-secret detection without printing secret values
 - [x] Persist project-specific purpose, architecture notes, decisions, next steps and latest scan summary locally
 - [x] Feed saved project memory into Goose task context
 - [x] Add staged multi-step task planning and handoff into AI Workspace
 - [x] Add Git branch creation, staged-only commit, push and GitHub CLI pull-request actions behind explicit approval
-- [ ] Add Unity editor discovery beyond the default Unity Hub installation path
-- [ ] Support npm/yarn/pnpm package manager detection and non-watch test execution
+- [x] Add Unity editor discovery in system and user Unity Hub locations
+- [x] Support npm/yarn/pnpm package manager detection and non-watch test execution
 - [x] Add true unified diff parsing and per-file patch review for Goose proposals
+- [x] Add automated Developer Intelligence, source graph, build diagnostic and Agent Orchestrator regression tests
 - [ ] Add patch parser and Git workflow automated unit tests
 - [x] Goose CLI process adapter with live output and cancellation
 - [x] Provider/model preferences persisted locally and API key stored in macOS Keychain
@@ -64,10 +68,12 @@ Current command execution uses fixed, typed command cases and Foundation Process
 
 ## Developer Intelligence validation
 - Recursive source/config inventory is bounded to 4,000 files and 256 KB per file; common generated/vendor directories are skipped.
-- Dependency edges are inferred from language imports/includes and package.json/Unity package manifests. This is a static map, not a full compiler-level dependency graph.
+- Dependency edges are inferred from language imports/includes and package.json/Unity package manifests. Unambiguous local imports resolve into file-to-file edges; external or ambiguous imports are not guessed. This is a static map, not a compiler-level graph.
 - Quality/performance findings are heuristic indicators, not a compiler, runtime profiler or formal security audit. Credential-like values are never shown in the report.
 - Project memory is stored locally per project UUID under Application Support/CODO/ProjectMemory and is included in Goose prompts.
-- Multi-step plans are handed to AI Workspace as a staged task. File apply, builds, commits, pushes and PR creation remain approval-gated; the plan does not run unattended subagents.
+- Build errors are fingerprinted, categorized and merged by signature. Common missing-symbol/module, linker, signing, package-resolution and type-check failures receive targeted next-step hints. Credential-like values are redacted before memory storage and when included in build diagnostics.
+- Multi-step plans run as sequential role-specific Goose calls: Architect, Planner, Implementer and Reviewer. They share the configured Goose provider/model; these are separate prompted stages, not parallel independent models. Each stage has persisted status and failure/retry handling.
+- The Reviewer Agent returns findings for the human patch review. It does not apply changes. Every file still needs explicit approval, and builds/tests require a separate approval.
 - Git integration uses fixed Git argument arrays. Commit only includes already staged files. Push and PR creation require a separate approval; PR creation requires an installed and authenticated GitHub CLI.
 
 ## AI Patch Review + Build/Fix validation
@@ -77,10 +83,11 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - Approved writes use the existing project-root checks, stale-file detection, and automatic backup.
 - After all accepted changes are applied, Debug/Release or web/Unity build/test actions can be selected. Each action has a separate confirmation and is executed through the typed command queue.
 - Failed build/test output can be sent back to Goose for a proposed patch. The UI limits this feedback cycle to two fix attempts; every new patch still requires per-file review and approval.
-- The build feedback loop is user-controlled, not an unattended agent loop.
+- The build feedback loop is user-controlled, not an unattended agent loop. Failed build diagnostics are saved locally and sent to Goose only after the user chooses the fix action.
 
 ## Goose Integration validation
 - Goose CLI adapter, provider settings UI, Keychain storage, approval prompt, live output, cancellation and Activity history are implemented.
+- Goose runs sequential Architect, Planner, Implementer and Reviewer role prompts using the configured provider/model. These roles share the same Goose CLI/model, rather than running as parallel independent agents.
 - Goose is instructed to operate in analysis/proposal-only mode. This prompt is not a hard sandbox; the CLI and its configured extensions may still have capabilities. Do not treat it as an enforced read-only boundary.
 - Unified diff proposals are parsed and shown in the per-file review sheet. Only supported modifications to existing text files are accepted.
 - Saved project memory is appended to Goose task context. This includes the latest project scan summary, purpose, architecture notes, previous decisions and next steps.
@@ -89,9 +96,11 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - Task Engine milestone CI: Debug and Release succeeded on commit b5c29334f5884adf3365529c7a11e1b95f565f75.
 - An earlier Command Approval + Build Engine CI attempt exposed a Swift optional-chaining parse error in Xcode scheme discovery; the source was corrected in commit 3f8d93d.
 - Goose integration CI exposed that GooseConfiguration needed Codable conformance for preference persistence; fixed in commit 8e91be7.
-- Follow-up improvements add npm/yarn/pnpm detection and broader Unity Hub editor discovery. Goose integration CI initially exposed a duplicate PBX object ID, corrected in commit 12f4d5d. The Developer Intelligence CI run 41721464681 then exposed a missing Xcode project registration for GitWorkflowService.swift; the file reference and source build entry were added in commit 1300410d. A fresh Debug and Release run is required for the corrected head.
+- Follow-up improvements add npm/yarn/pnpm detection and Unity Hub editor discovery. Goose integration CI initially exposed a duplicate PBX object ID, corrected in commit 12f4d5d. Developer Intelligence CI exposed a missing Xcode project registration for GitWorkflowService.swift; the file reference and source build entry were added in commit 1300410d.
+- Developer Intelligence test runs caught and fixed project-root URL normalization in the recursive scanner, and a retry-stage selector that could mistake the Planner step for the Implementer step. Fixes are in commits 71628b1, 57da220 and 120f900.
+- Latest CI run 41726171868 succeeded: all six Developer Intelligence/Agent Orchestrator test groups passed, and both Debug and Release Xcode builds succeeded.
 - Build adapters are implemented but have not yet been run against real Xcode, Unity or web projects on the user's Mac.
 - Physical Mac launch and visual validation have not been performed.
 
 ## Next
-Verify Debug and Release CI for the corrected Developer Intelligence head, fix any further compiler errors from actual logs, add automated tests for patch parsing and Git operations, then validate on a physical Mac with a real Xcode/Unity/web project and authenticated Goose/GitHub CLI.
+Add automated tests for unified diff parsing, command approval, build planning and Git workflow safety. Then validate the sequential Goose roles, real Xcode/Unity/web builds and authenticated GitHub CLI on a physical Mac.
