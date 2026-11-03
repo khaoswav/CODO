@@ -15,6 +15,14 @@ struct IntelligenceDependency: Identifiable, Codable, Hashable {
     var id: String { source + "->" + target + ":" + kind }
 }
 
+struct IntelligenceGraphEdge: Identifiable, Codable, Hashable {
+    let sourceFile: String
+    let targetFile: String
+    let importedSymbol: String
+    let kind: String
+    var id: String { sourceFile + "->" + targetFile + ":" + importedSymbol }
+}
+
 struct IntelligenceFinding: Identifiable, Codable {
     enum Severity: String, Codable {
         case info = "Info"
@@ -43,6 +51,7 @@ struct DeveloperIntelligenceReport: Codable {
     let generatedAt: Date
     let files: [IntelligenceFile]
     let dependencies: [IntelligenceDependency]
+    let graphEdges: [IntelligenceGraphEdge]
     let findings: [IntelligenceFinding]
     let languageCounts: [String: Int]
     let totalLines: Int
@@ -85,7 +94,7 @@ enum DeveloperIntelligenceService {
             options: [.skipsHiddenFiles]
         ) else {
             return DeveloperIntelligenceReport(projectName: projectName, generatedAt: .now,
-                files: [], dependencies: [], findings: [
+                files: [], dependencies: [], graphEdges: [], findings: [
                     IntelligenceFinding(severity: .critical, title: "Project folder unavailable",
                         filePath: "", detail: "CODO could not enumerate the selected project folder.")
                 ], languageCounts: [:], totalLines: 0, truncated: false)
@@ -172,16 +181,55 @@ enum DeveloperIntelligenceService {
             .compactMap { $0.value.first }
             .sorted { severityRank($0.severity) > severityRank($1.severity) }
 
+        let sortedFiles = files.sorted { $0.path < $1.path }
+        let uniqueDependencies = Array(Set(dependencies)).sorted { $0.id < $1.id }
+        let graphEdges = resolveGraph(files: sortedFiles, dependencies: uniqueDependencies)
+
         return DeveloperIntelligenceReport(
             projectName: projectName,
             generatedAt: .now,
-            files: files.sorted { $0.path < $1.path },
-            dependencies: Array(Set(dependencies)).sorted { $0.id < $1.id },
+            files: sortedFiles,
+            dependencies: uniqueDependencies,
+            graphEdges: graphEdges,
             findings: uniqueFindings,
             languageCounts: languageCounts,
             totalLines: totalLines,
             truncated: truncated
         )
+    }
+
+    static func resolveGraph(files: [IntelligenceFile], dependencies: [IntelligenceDependency]) -> [IntelligenceGraphEdge] {
+        let paths = Set(files.map(\.path))
+        let byStem = Dictionary(grouping: files, by: { URL(fileURLWithPath: $0.path).deletingPathExtension().lastPathComponent.lowercased() })
+        var edges: [IntelligenceGraphEdge] = []
+
+        for dependency in dependencies {
+            let rawTarget = dependency.target.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !rawTarget.isEmpty else { continue }
+            var candidates: [String] = []
+
+            if rawTarget.hasPrefix(".") || rawTarget.hasPrefix("/") {
+                let base = URL(fileURLWithPath: dependency.source).deletingLastPathComponent()
+                    .appendingPathComponent(rawTarget).standardizedFileURL.path
+                let normalized = base.hasPrefix("/") ? String(base.dropFirst()) : base
+                let extensions = ["", ".swift", ".js", ".jsx", ".ts", ".tsx", ".m", ".mm", ".h", ".hpp", ".c", ".cc", ".cpp", ".cs", ".py", ".rs", ".go", ".java", ".kt"]
+                candidates.append(contentsOf: extensions.map { normalized + $0 })
+                candidates.append(contentsOf: extensions.dropFirst().map { normalized + "/index" + $0 })
+            } else {
+                let module = rawTarget.split(separator: ".").last.map(String.init) ?? rawTarget
+                candidates.append(contentsOf: (byStem[module.lowercased()] ?? []).map(\.path))
+            }
+
+            let matches = Set(candidates.filter { paths.contains($0) && $0 != dependency.source })
+            guard matches.count == 1, let target = matches.first else { continue }
+            edges.append(IntelligenceGraphEdge(
+                sourceFile: dependency.source,
+                targetFile: target,
+                importedSymbol: rawTarget,
+                kind: dependency.kind
+            ))
+        }
+        return Array(Set(edges)).sorted { $0.id < $1.id }
     }
 
     private static func languageName(for ext: String) -> String {
