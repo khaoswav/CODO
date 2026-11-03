@@ -55,7 +55,7 @@ enum ProjectCommand: String, CaseIterable, Identifiable {
         case .web:
             [.location, .listFiles, .gitStatus, .nodeVersion, .npmVersion, .webBuild, .webTest]
         case .unity:
-            [.location, .listFiles, .gitStatus, .unityMacBuild]
+            [.location, .listFiles, .gitStatus]
         case .other:
             [.location, .listFiles, .gitStatus]
         }
