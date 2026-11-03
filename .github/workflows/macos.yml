@@ -1,0 +1,55 @@
+name: macOS Build
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: codo-macos-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.configuration }})
+    runs-on: macos-15
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run Developer Intelligence tests
+        run: |
+          swiftc -parse-as-library \
+            CODO/Models/CODOProject.swift \
+            CODO/Services/DeveloperIntelligenceService.swift \
+            CODO/Services/AgentOrchestratorStore.swift \
+            CODO/Services/AIUnifiedDiffParser.swift \
+            CODO/Services/ProjectFileChangeService.swift \
+            CODO/Services/ProjectBuildPlanner.swift \
+            CODO/Services/ProjectProcessRunner.swift \
+            CODO/Services/GitWorkflowService.swift \
+            Tests/DeveloperIntelligenceTests.swift \
+            -framework SwiftUI \
+            -o "$RUNNER_TEMP/codo-intelligence-tests"
+          "$RUNNER_TEMP/codo-intelligence-tests"
+      - name: Run build adapter end-to-end tests
+        env:
+          CODO_BUILD_CONFIGURATION: ${{ matrix.configuration }}
+        run: |
+          swiftc -parse-as-library \
+            CODO/Models/CODOProject.swift \
+            CODO/Services/ProjectAnalyzer.swift \
+            CODO/Services/ProjectBuildPlanner.swift \
+            CODO/Services/ProjectProcessRunner.swift \
+            Tests/BuildAdapterIntegrationTests.swift \
+            -framework SwiftUI \
+            -o "$RUNNER_TEMP/codo-build-adapter-e2e"
+          "$RUNNER_TEMP/codo-build-adapter-e2e"
