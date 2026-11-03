@@ -153,6 +153,7 @@ struct BuildAdapterIntegrationTests {
         additions.forEach { environment[$0.key] = $0.value }
         process.environment = environment
         try process.run()
+        try? pipe.fileHandleForWriting.close()
         let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
         process.waitUntilExit()
         guard process.terminationStatus == 0 else {
