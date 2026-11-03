@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct WorkspaceView: View {
+    let pendingPrompt: String?
+    let onPromptConsumed: () -> Void
     @EnvironmentObject private var store: ProjectStore
     @EnvironmentObject private var taskQueue: TaskQueueStore
     @StateObject private var agent = GooseAgentService()
@@ -100,12 +102,9 @@ struct WorkspaceView: View {
                     patchError = error.localizedDescription
                 }
             }
+            consumePendingPrompt()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .codoStartAgentTask)) { notification in
-            guard let task = notification.object as? String else { return }
-            prompt = task
-            showRunApproval = true
-        }
+        .onChange(of: pendingPrompt) { _, _ in consumePendingPrompt() }
     }
 
     private var header: some View {
@@ -249,6 +248,13 @@ struct WorkspaceView: View {
         .padding(22)
         .frame(width: 480, height: 390)
         .background(CODOTheme.background)
+    }
+
+    private func consumePendingPrompt() {
+        guard let pendingPrompt else { return }
+        prompt = pendingPrompt
+        showRunApproval = true
+        onPromptConsumed()
     }
 
     private func startAnalysis() {
