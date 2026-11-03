@@ -9,6 +9,11 @@ enum ProjectCommand: String, CaseIterable, Identifiable {
     case swiftVersion = "Swift version"
     case nodeVersion = "Node.js version"
     case npmVersion = "npm version"
+    case xcodeDebugBuild = "Xcode Debug build"
+    case xcodeReleaseBuild = "Xcode Release build"
+    case unityMacBuild = "Unity macOS build"
+    case webBuild = "Web build"
+    case webTest = "Web test"
 
     var id: String { rawValue }
 
@@ -20,6 +25,9 @@ enum ProjectCommand: String, CaseIterable, Identifiable {
         case .xcodeTargets: URL(fileURLWithPath: "/usr/bin/xcodebuild")
         case .swiftVersion: URL(fileURLWithPath: "/usr/bin/swift")
         case .nodeVersion, .npmVersion: URL(fileURLWithPath: "/usr/bin/env")
+        case .xcodeDebugBuild, .xcodeReleaseBuild: URL(fileURLWithPath: "/usr/bin/xcodebuild")
+        case .unityMacBuild: URL(fileURLWithPath: "/Applications/Unity/Hub/Editor/Unity.app/Contents/MacOS/Unity")
+        case .webBuild, .webTest: URL(fileURLWithPath: "/usr/bin/env")
         }
     }
 
@@ -32,6 +40,7 @@ enum ProjectCommand: String, CaseIterable, Identifiable {
         case .swiftVersion: ["--version"]
         case .nodeVersion: ["node", "--version"]
         case .npmVersion: ["npm", "--version"]
+        case .xcodeDebugBuild, .xcodeReleaseBuild, .unityMacBuild, .webBuild, .webTest: []
         }
     }
 
@@ -45,8 +54,26 @@ enum ProjectCommand: String, CaseIterable, Identifiable {
             [.location, .listFiles, .gitStatus, .xcodeTargets, .swiftVersion]
         case .web:
             [.location, .listFiles, .gitStatus, .nodeVersion, .npmVersion]
-        case .unity, .other:
+        case .unity:
+            [.location, .listFiles, .gitStatus, .unityMacBuild]
+        case .other:
             [.location, .listFiles, .gitStatus]
+        }
+    }
+
+    var requiresApproval: Bool {
+        switch self {
+        case .xcodeDebugBuild, .xcodeReleaseBuild, .unityMacBuild, .webBuild, .webTest: true
+        default: false
+        }
+    }
+
+    static func buildCommands(for kind: ProjectKind) -> [ProjectCommand] {
+        switch kind {
+        case .macOS, .iOS: [.xcodeDebugBuild, .xcodeReleaseBuild]
+        case .unity: [.unityMacBuild]
+        case .web: [.webBuild, .webTest]
+        case .other: []
         }
     }
 }
@@ -83,8 +110,13 @@ final class ProjectProcessRunner: ObservableObject {
 
         let task = Process()
         let pipe = Pipe()
-        task.executableURL = command.executable
-        task.arguments = command.arguments
+        let planned = ProjectBuildPlanner.plan(command, root: workingDirectory, project: project)
+        if command.requiresApproval && planned == nil {
+            fail("Build configuration could not be prepared. Check the project structure and installed tools.")
+            return
+        }
+        task.executableURL = planned?.executable ?? command.executable
+        task.arguments = planned?.arguments ?? command.arguments
         task.currentDirectoryURL = workingDirectory
         task.standardOutput = pipe
         task.standardError = pipe
