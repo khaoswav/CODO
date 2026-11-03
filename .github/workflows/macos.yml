@@ -1,0 +1,43 @@
+name: macOS Build
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: codo-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.configuration }})
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Developer Intelligence tests
+        run: |
+          swiftc -parse-as-library \
+            CODO/Models/CODOProject.swift \
+            CODO/Services/DeveloperIntelligenceService.swift \
+            CODO/Services/AgentOrchestratorStore.swift \
+            Tests/DeveloperIntelligenceTests.swift \
+            -framework SwiftUI \
+            -o "$RUNNER_TEMP/codo-intelligence-tests"
+          "$RUNNER_TEMP/codo-intelligence-tests"
+      - name: Build CODO
+        run: |
+          xcodebuild \
+            -project CODO.xcodeproj \
+            -scheme CODO \
+            -configuration "${{ matrix.configuration }}" \
+            -sdk macosx \
+            -destination 'platform=macOS,arch=arm64' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
