@@ -479,11 +479,15 @@ struct DeveloperIntelligenceView: View {
     private func analyze() {
         guard let project else { return }
         isAnalyzing = true
-        report = store.developerIntelligence(project)
-        if let report {
-            memory.lastArchitectureSummary = report.summary
-            try? store.saveProjectMemory(memory)
+        Task {
+            let result = await store.developerIntelligence(project)
+            guard store.selectedProjectID == project.id else { return }
+            report = result
+            if let result {
+                memory.lastArchitectureSummary = result.summary
+                try? store.saveProjectMemory(memory)
+            }
+            isAnalyzing = false
         }
-        isAnalyzing = false
     }
 }
