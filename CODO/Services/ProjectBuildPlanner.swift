@@ -7,6 +7,14 @@ struct PlannedCommand {
 }
 
 enum ProjectBuildPlanner {
+    private enum WebPackageManager: String {
+        case npm
+        case yarn
+        case pnpm
+
+        var executable: String { rawValue }
+    }
+
     static func plan(_ command: ProjectCommand, root: URL, project: CODOProject) -> PlannedCommand? {
         let files = (try? FileManager.default.contentsOfDirectory(atPath: root.path)) ?? []
         switch command {
@@ -20,7 +28,9 @@ enum ProjectBuildPlanner {
             let sharedSchemes = containerURL
                 .appendingPathComponent("xcshareddata/xcschemes", isDirectory: true)
             let schemeFiles = try? FileManager.default.contentsOfDirectory(at: sharedSchemes, includingPropertiesForKeys: nil)
-            let schemeFile = schemeFiles?.first(where: { $0.pathExtension == "xcscheme" })
+            let schemeFile = schemeFiles?.filter { $0.pathExtension == "xcscheme" }
+                .sorted { $0.lastPathComponent < $1.lastPathComponent }
+                .first
             let scheme = schemeFile?.deletingPathExtension().lastPathComponent
                 ?? containerURL.deletingPathExtension().lastPathComponent
             let configuration = command == .xcodeDebugBuild ? "Debug" : "Release"
@@ -36,16 +46,33 @@ enum ProjectBuildPlanner {
             )
 
         case .unityMacBuild:
-            let hubEditors = URL(fileURLWithPath: "/Applications/Unity/Hub/Editor", isDirectory: true)
-            guard let versions = try? FileManager.default.contentsOfDirectory(at: hubEditors, includingPropertiesForKeys: [.isDirectoryKey]),
-                  let editor = versions.sorted(by: { $0.lastPathComponent.compare($1.lastPathComponent, options: .numeric) == .orderedDescending }).first(where: {
-                      FileManager.default.fileExists(atPath: $0.appendingPathComponent("Unity.app/Contents/MacOS/Unity").path)
-                  }) else { return nil }
+            let editorRoots = [
+                URL(fileURLWithPath: "/Applications/Unity/Hub/Editor", isDirectory: true),
+                FileManager.default.homeDirectoryForCurrentUser
+                    .appendingPathComponent("Applications/Unity/Hub/Editor", isDirectory: true)
+            ]
+            let editors = editorRoots.flatMap { directory -> [URL] in
+                (try? FileManager.default.contentsOfDirectory(
+                    at: directory,
+                    includingPropertiesForKeys: [.isDirectoryKey]
+                )) ?? []
+            }
+            guard let editor = editors.sorted(by: {
+                $0.lastPathComponent.compare($1.lastPathComponent, options: .numeric) == .orderedDescending
+            }).first(where: {
+                FileManager.default.fileExists(
+                    atPath: $0.appendingPathComponent("Unity.app/Contents/MacOS/Unity").path
+                )
+            }) else { return nil }
             let executable = editor.appendingPathComponent("Unity.app/Contents/MacOS/Unity")
             let output = root.appendingPathComponent("Builds/CODO-macOS.app").path
             let args = ["-batchmode", "-quit", "-projectPath", root.path,
                         "-buildTarget", "StandaloneOSX", "-buildOSXPlayer", output]
-            return PlannedCommand(executable: executable, arguments: args, display: executable.path + " " + args.joined(separator: " "))
+            return PlannedCommand(
+                executable: executable,
+                arguments: args,
+                display: executable.path + " " + args.joined(separator: " ")
+            )
 
         case .webBuild, .webTest:
             let packageURL = root.appendingPathComponent("package.json")
@@ -54,11 +81,27 @@ enum ProjectBuildPlanner {
                   let scripts = object["scripts"] as? [String: String] else { return nil }
             let script = command == .webBuild ? "build" : "test"
             guard scripts[script] != nil else { return nil }
-            let args = ["npm", "run", script]
-            return PlannedCommand(executable: URL(fileURLWithPath: "/usr/bin/env"), arguments: args, display: "npm run " + script)
+            let manager = detectPackageManager(files: files, packageJSON: object)
+            let args = ["-C", root.path, "run", script]
+            let finalArguments = manager == .npm ? ["run", script] : args
+            return PlannedCommand(
+                executable: URL(fileURLWithPath: "/usr/bin/env"),
+                arguments: [manager.executable] + finalArguments,
+                display: manager.executable + " " + finalArguments.joined(separator: " ")
+            )
 
         default:
             return nil
         }
+    }
+
+    private static func detectPackageManager(files: [String], packageJSON: [String: Any]) -> WebPackageManager {
+        if let declared = packageJSON["packageManager"] as? String {
+            let name = declared.split(separator: "@", maxSplits: 1).first.map(String.init) ?? ""
+            if let manager = WebPackageManager(rawValue: name) { return manager }
+        }
+        if files.contains("pnpm-lock.yaml") { return .pnpm }
+        if files.contains("yarn.lock") { return .yarn }
+        return .npm
     }
 }
