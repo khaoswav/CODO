@@ -17,29 +17,38 @@ Apple-native SwiftUI, system light/dark appearance, semantic AppKit colors, nati
 - [x] Unity editor/package inspection and web package/scripts/dependency inspection
 - [x] Controlled Process-based diagnostic command runner with no shell interpolation
 - [x] Live stdout/stderr output and process cancellation
-- [x] Project-scoped working directory and security access held while the process runs
-- [x] Fixed diagnostic command allowlist
-- [x] Persistent task queue with sequential execution
-- [x] Task statuses: queued, running, succeeded, failed and cancelled
-- [x] Execution history and logs persisted locally in Application Support/CODO
+- [x] Persistent sequential task queue and local execution history
 - [x] Activity workspace with expandable task logs and history cleanup
-- [x] Task output capped per task and history bounded to 50 records
+- [x] Explicit approval prompt before Xcode, Unity, web build and web test tasks
+- [x] Xcode Debug and Release build command planning
+- [x] Unity macOS batch build planning using an installed Unity Hub editor
+- [x] Web npm build/test script detection from package.json
+- [x] Build commands run directly as executable plus argument arrays, never through a shell
+- [x] File editor for supported text/source files up to 256 KB
+- [x] Side-by-side original/proposed content review before applying file edits
+- [x] File edits require an explicit Apply approval
+- [x] Project-root and symlink boundary checks for file changes
+- [x] Automatic source backup before each approved write
+- [x] Refuse to overwrite if the source file changed after review
 - [x] Debug and Release macOS CI workflow
 
 ## In progress
 - [ ] Verify Debug and Release CI on the latest commit
-- [ ] Add unit tests for task queue lifecycle and process completion/cancellation
-- [ ] Add a command approval layer before enabling arbitrary shell commands
-- [ ] Add project-specific build adapters for Xcode, Unity and web
-- [ ] Connect Goose after execution permissions and lifecycle are tested
+- [ ] Add automated tests for command approval, build planning and file change safety
+- [ ] Improve Xcode scheme selection and build result parsing
+- [ ] Add Unity editor discovery beyond the default Unity Hub installation path
+- [ ] Support npm/yarn/pnpm package manager detection and non-watch test execution
+- [ ] Add true unified diff view and file restore from backups
+- [ ] Connect Goose after permission and execution lifecycle are validated
 
 ## Security boundaries
-Current commands are a fixed allowlist launched directly with Foundation Process. CODO does not invoke a shell or accept arbitrary user-supplied command strings. The runner is limited to the imported project working directory and holds its security-scoped access while running. No write-capable agent workflow is enabled yet.
+Current command execution uses fixed, typed command cases and Foundation Process with explicit executable paths and argument arrays. No arbitrary shell string is accepted. Build/test commands require a per-run user approval. File writes are limited to supported text files inside the imported project root, are reviewed before apply, are backed up under Application Support/CODO/Backups, and are rejected if the original file changed after review. Destructive commands, OS-level changes, and autonomous broad file access are not enabled.
 
 ## Validation
-- The prior CI run for the previous process-runner milestone was pending without assigned jobs when last checked.
-- The task queue and Activity workspace changes require fresh Debug and Release CI confirmation.
+- Task Engine milestone CI: Debug and Release succeeded on commit b5c29334f5884adf3365529c7a11e1b95f565f75.
+- Command Approval + Build Engine changes are awaiting a fresh Debug and Release CI run.
+- Build adapters are implemented but have not yet been run against real Xcode, Unity or web projects on the user's Mac.
 - Physical Mac launch and visual validation have not been performed.
 
 ## Next
-Wait for and inspect the fresh CI run, fix any build errors from actual logs, and add automated tests for task lifecycle. Then implement explicit command approval and Xcode/Unity build adapters before Goose integration.
+Inspect the latest CI logs and fix any compiler errors. Add automated tests and harden build result reporting. Then connect Goose to propose code edits and tasks, while keeping the existing review/approval boundary before any project file is changed or build command is run.
