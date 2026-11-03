@@ -253,7 +253,7 @@ struct DeveloperIntelligenceTests {
         do {
             _ = try AIUnifiedDiffParser.parse(traversal, project: project, root: root)
             throw TestFailure.assertion("Parent-directory traversal must be rejected")
-        } catch AIUnifiedDiffError.unsafePath {
+        } catch AIUnifiedDiffError.unsafePath(_) {
             // Expected: project-root escape rejected.
         }
 
@@ -267,7 +267,7 @@ struct DeveloperIntelligenceTests {
         do {
             _ = try AIUnifiedDiffParser.parse(mismatch, project: project, root: root)
             throw TestFailure.assertion("A stale diff context must be rejected")
-        } catch AIUnifiedDiffError.contextMismatch {
+        } catch AIUnifiedDiffError.contextMismatch(_) {
             // Expected: stale source context rejected.
         }
 
