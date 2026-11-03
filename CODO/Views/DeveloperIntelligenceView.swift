@@ -1,5 +1,11 @@
 import SwiftUI
 
+private struct LanguageCountRow: Identifiable {
+    let name: String
+    let count: Int
+    var id: String { name }
+}
+
 struct DeveloperIntelligenceView: View {
     let onStartTask: (String) -> Void
     private enum GitAction: String, Identifiable {
@@ -23,8 +29,9 @@ struct DeveloperIntelligenceView: View {
     @State private var pendingGitAction: GitAction?
 
     private var project: CODOProject? { store.selectedProject }
-    private var languageRows: [(String, Int)] {
-        (report?.languageCounts ?? [:]).sorted { $0.value > $1.value }
+    private var languageRows: [LanguageCountRow] {
+        (report?.languageCounts ?? [:]).map { LanguageCountRow(name: $0.key, count: $0.value) }
+            .sorted { $0.count > $1.count }
     }
 
     var body: some View {
@@ -147,11 +154,11 @@ struct DeveloperIntelligenceView: View {
                 Divider().overlay(CODOTheme.border)
                 Text("LANGUAGES & FILE TYPES").font(.system(size: 9, weight: .bold)).tracking(0.8)
                     .foregroundStyle(CODOTheme.mutedText)
-                ForEach(languageRows, id: \.0) { language, count in
+                ForEach(languageRows) { row in
                     HStack {
-                        Text(language).font(.system(size: 11))
+                        Text(row.name).font(.system(size: 11))
                         Spacer()
-                        Text("\(count) files").font(.system(size: 10, design: .monospaced))
+                        Text("\(row.count) files").font(.system(size: 10, design: .monospaced))
                             .foregroundStyle(CODOTheme.secondaryText)
                     }
                 }
