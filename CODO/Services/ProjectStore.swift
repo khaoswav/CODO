@@ -66,8 +66,8 @@ final class ProjectStore: ObservableObject {
 
     func files(in directory: URL, for project: CODOProject) -> [CODOProjectFile] {
         withProjectAccess(project) { root in
-            let target = directory.standardizedFileURL
-            guard target.path == root.path || target.path.hasPrefix(root.path + "/") else { return [] }
+            let target = directory.resolvingSymlinksInPath().standardizedFileURL
+            let canonicalRoot = root.resolvingSymlinksInPath().standardizedFileURL\n            guard target.path == canonicalRoot.path || target.path.hasPrefix(canonicalRoot.path + "/") else { return [] }
             guard let urls = try? FileManager.default.contentsOfDirectory(
                 at: target,
                 includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey, .isHiddenKey],
@@ -92,8 +92,8 @@ final class ProjectStore: ObservableObject {
 
     func textPreview(of file: URL, in project: CODOProject) -> String? {
         withProjectAccess(project) { root in
-            let target = file.standardizedFileURL
-            guard target.path.hasPrefix(root.path + "/"),
+            let target = file.resolvingSymlinksInPath().standardizedFileURL\n            let canonicalRoot = root.resolvingSymlinksInPath().standardizedFileURL
+            guard target.path.hasPrefix(canonicalRoot.path + "/"),
                   !FileManager.default.directoryExists(at: target),
                   textExtensions.contains(target.pathExtension.lowercased()),
                   let attributes = try? FileManager.default.attributesOfItem(atPath: target.path),
@@ -106,7 +106,7 @@ final class ProjectStore: ObservableObject {
     }
 
     private func withProjectAccess<T>(_ project: CODOProject, perform: (URL) -> T) -> T? {
-        guard let root = resolvedURL(for: project)?.standardizedFileURL else { return nil }
+        guard let root = projectRootURL(for: project)?.standardizedFileURL else { return nil }
         let didStart = project.bookmarkData != nil ? root.startAccessingSecurityScopedResource() : false
         defer {
             if didStart { root.stopAccessingSecurityScopedResource() }
@@ -114,7 +114,7 @@ final class ProjectStore: ObservableObject {
         return perform(root)
     }
 
-    private func resolvedURL(for project: CODOProject) -> URL? {
+    func projectRootURL(for project: CODOProject) -> URL? {
         guard let bookmarkData = project.bookmarkData else {
             return URL(fileURLWithPath: project.path)
         }
