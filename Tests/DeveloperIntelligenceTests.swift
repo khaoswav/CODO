@@ -137,7 +137,7 @@ struct DeveloperIntelligenceTests {
         store.start(project: project, request: "Add a sample feature", plan: plan)
 
         try expect(store.activeWorkflow?.steps.first?.status == .running, "Workflow should start its first stage")
-        store.completeCurrentAndAdvance("Architecture inspected.")
+        store.completeCurrentAndAdvance("Architecture inspected.", output: "API_KEY=super-secret-agent-output")
         try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Plan") })?.status == .running,
                    "Orchestrator should run the planning stage after architecture")
         store.completeCurrentAndAdvance("Implementation plan prepared.")
@@ -153,8 +153,12 @@ struct DeveloperIntelligenceTests {
         try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Build") })?.status == .awaitingApproval,
                    "Build stage must wait for explicit approval")
         store.approveCurrentStep()
-        store.buildFailed("Compiler error: missing symbol")
+        store.buildFailed("Compiler error: missing symbol", output: "error: API_KEY=super-secret-build-output")
         try expect(store.activeWorkflow?.status == .failed, "Build failure should fail the workflow")
+        let failedBuildStep = store.activeWorkflow?.steps.first(where: { $0.title.contains("Build") })
+        try expect(failedBuildStep?.errorMessage != nil, "Failed steps should preserve a visible error summary")
+        try expect(failedBuildStep?.outputExcerpt?.contains("super-secret-build-output") == false,
+                   "Build output excerpts must redact credentials before persistence")
 
         // Simulate relaunch: failed workflows are restored as history and can be resumed explicitly.
         let recovered = AgentOrchestratorStore(storageURL: storage)
@@ -190,7 +194,6 @@ struct DeveloperIntelligenceTests {
         store.completeCurrentAndAdvance("Plan prepared.")
         store.completeCurrentAndAdvance("Diff proposed.")
         store.proposalReady()
-        store.completeCurrentAndAdvance("Reviewer approved the proposal.")
         try expect(store.activeWorkflow?.steps.first(where: { $0.title == "Review and approve" })?.status == .awaitingApproval,
                    "Patch review must be approval-gated")
         store.reviewCompleted(appliedCount: 0, rejectedCount: 1)
