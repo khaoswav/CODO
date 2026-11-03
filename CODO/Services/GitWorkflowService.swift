@@ -70,9 +70,11 @@ final class GitWorkflowService: ObservableObject {
     }
 
     private func readBranchAndStatus(project: CODOProject, root: URL) {
-        runGit(["branch", "--show-current"], project: project, root: root, approvalGranted: true) { [weak self] branch, code in
+        run(executable: URL(fileURLWithPath: "/usr/bin/git"), arguments: ["branch", "--show-current"],
+            project: project, root: root, approvalGranted: true, updateSnapshot: false) { [weak self] branch, code in
             guard let self, code == 0 else { return }
-            self.runGit(["status", "--short", "--branch"], project: project, root: root, approvalGranted: true) { status, statusCode in
+            self.run(executable: URL(fileURLWithPath: "/usr/bin/git"), arguments: ["status", "--short", "--branch"],
+                project: project, root: root, approvalGranted: true, updateSnapshot: false) { status, statusCode in
                 guard statusCode == 0 else { return }
                 self.snapshot = GitRepositorySnapshot(branch: branch.trimmingCharacters(in: .whitespacesAndNewlines),
                     status: status, isRepository: true)
