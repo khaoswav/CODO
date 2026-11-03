@@ -3,12 +3,18 @@ import SwiftUI
 struct AIChangeReviewView: View {
     let project: CODOProject
     let root: URL
+    let onBuildFailure: (String) -> Void
+    @EnvironmentObject private var taskQueue: TaskQueueStore
     @State var changes: [ProjectFileChange]
     @Environment(\.dismiss) private var dismiss
     @State private var selectedForApply: ProjectFileChange?
     @State private var errorMessage: String?
     @State private var rejectedCount = 0
     @State private var appliedCount = 0
+    @State private var selectedBuildCommand: ProjectCommand?
+    @State private var latestBuildTaskID: UUID?
+    @State private var buildMessage: String?
+    @State private var failedBuildOutput: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,6 +39,17 @@ struct AIChangeReviewView: View {
         }
         .frame(minWidth: 760, minHeight: 560)
         .background(CODOTheme.background)
+        .onAppear {
+            taskQueue.onTaskCompletion = { task in
+                guard task.id == latestBuildTaskID else { return }
+                if task.status == .failed {
+                    failedBuildOutput = task.output
+                    buildMessage = "Build/test failed. You can send the log to Goose for a proposed fix."
+                } else if task.status == .succeeded {
+                    buildMessage = "Build/test succeeded."
+                }
+            }
+        }
         .confirmationDialog(
             "Apply this file change?",
             isPresented: Binding(
@@ -48,6 +65,40 @@ struct AIChangeReviewView: View {
             Button("Cancel", role: .cancel) { selectedForApply = nil }
         } message: {
             Text("CODO will re-check the original file, create a backup, then write the approved content. This approval applies only to the selected file.")
+        }
+        .confirmationDialog(
+            "Approve build or test?",
+            isPresented: Binding(
+                get: { selectedBuildCommand != nil },
+                set: { if !$0 { selectedBuildCommand = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Approve and run") {
+                if let command = selectedBuildCommand {
+                    latestBuildTaskID = taskQueue.enqueue(command, project: project, root: root, approvalGranted: true)
+                    buildMessage = "Queued: " + command.rawValue
+                }
+                selectedBuildCommand = nil
+            }
+            Button("Cancel", role: .cancel) { selectedBuildCommand = nil }
+        } message: {
+            Text("CODO will execute the selected build/test command in the project. Generated files may be created or updated.")
+        }
+        .alert("Build feedback", isPresented: Binding(
+            get: { buildMessage != nil },
+            set: { if !$0 { buildMessage = nil } }
+        )) {
+            if let failedBuildOutput {
+                Button("Ask Goose to propose a fix") {
+                    onBuildFailure(failedBuildOutput)
+                    self.failedBuildOutput = nil
+                    buildMessage = nil
+                }
+            }
+            Button("OK", role: .cancel) { buildMessage = nil; failedBuildOutput = nil }
+        } message: {
+            Text(buildMessage ?? "")
         }
         .alert("Could not apply change", isPresented: Binding(
             get: { errorMessage != nil },
@@ -159,6 +210,14 @@ struct AIChangeReviewView: View {
             Text("\(appliedCount) applied · \(rejectedCount) rejected · \(changes.count) pending")
                 .font(.system(size: 10)).foregroundStyle(CODOTheme.secondaryText)
             Spacer()
+            if changes.isEmpty && appliedCount > 0 {
+                Menu("Build / Test") {
+                    ForEach(ProjectCommand.buildCommands(for: project.kind)) { command in
+                        Button(command.rawValue) { selectedBuildCommand = command }
+                    }
+                }
+                .menuStyle(.borderlessButton)
+            }
             Button("Close") { dismiss() }.buttonStyle(.bordered)
                 .disabled(!changes.isEmpty)
         }
