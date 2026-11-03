@@ -259,6 +259,7 @@ struct WorkspaceView: View {
         isFixRequest = false
         let memory = store.projectMemory(project)
         var context: [String] = []
+        if let summary = memory.lastArchitectureSummary { context.append("LATEST PROJECT SCAN:\\n" + summary) }
         if !memory.purpose.isEmpty { context.append("PROJECT PURPOSE:\\n" + memory.purpose) }
         if !memory.architectureNotes.isEmpty { context.append("ARCHITECTURE NOTES:\\n" + memory.architectureNotes) }
         if !memory.decisions.isEmpty { context.append("PREVIOUS DECISIONS:\\n" + memory.decisions.map { "- " + $0 }.joined(separator: "\\n")) }
