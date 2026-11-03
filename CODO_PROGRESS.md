@@ -6,13 +6,6 @@ Native macOS development command center. Tagline: **Think. Code. Create.**
 ## Design direction
 Apple-native SwiftUI, system light/dark appearance, semantic AppKit colors, native project selection, and a restrained violet accent.
 
-## Current validation gate
-- [x] PR #5 Build Log Diagnostics and Redaction: latest head CI run 41735036198 completed successfully. Debug and Release jobs passed, including Developer Intelligence and Build Adapter E2E.
-- [x] PR #6 Goose Workflow Recovery Context: latest head CI run 41735004445 completed successfully. Debug and Release jobs passed, including Developer Intelligence and Build Adapter E2E.
-- [ ] Merge PRs. **Intentionally not authorized; both PRs remain open and draft.**
-- [ ] Run a real provider-backed Goose task workflow.
-- [ ] Perform physical Mac validation.
-
 ## Completed
 - [x] Native SwiftUI app entry point and Xcode project
 - [x] Adaptive system colors and core dashboard/workspace navigation
@@ -40,51 +33,140 @@ Apple-native SwiftUI, system light/dark appearance, semantic AppKit colors, nati
 - [x] Automatic source backup before each approved write
 - [x] Refuse to overwrite if the source file changed after review
 - [x] Debug and Release macOS CI workflow
-- [x] Project-wide source/config inventory with file, line and language metrics
-- [x] Source import/include and package dependency links
+
+## In progress
+- [x] Verify Debug and Release CI on the latest Developer Intelligence commit (run 41730302278 succeeded)
+- [x] Run expanded regression suite for unified diff, file changes, build planning and Git input policies in CI (PR #3 workflow 41731717894: Debug and Release test/build jobs succeeded)
+- [ ] Add automated tests for command approval, build planning and file change safety
+- [ ] Improve Xcode scheme selection and build result parsing
+- [x] Add project-wide source/config inventory with file, line and language metrics
+- [x] Build source import/include and package dependency links
 - [x] Resolve unambiguous local Swift and relative ES module imports into file-to-file graph edges
-- [x] Local build failure fingerprints, common compiler-error classification, next-step hints and credential redaction
-- [x] Persisted sequential Architect, Planner, Implementer and Reviewer Goose roles with stage status, approval gates and retry recovery
-- [x] Static code-quality and performance heuristics, including TODOs, force unwraps, debug output, blocking I/O, deadlock patterns and embedded-secret detection without printing secret values
+- [x] Add local build failure fingerprints, common compiler-error classification, next-step hints and credential redaction
+- [x] Add persisted sequential Architect, Planner, Implementer and Reviewer Goose roles with stage status, approval gates and retry recovery
+- [x] Add static code-quality and performance heuristics, including TODOs, force unwraps, debug output, blocking I/O, deadlock patterns and embedded-secret detection without printing secret values
 - [x] Persist project-specific purpose, architecture notes, decisions, next steps and latest scan summary locally
 - [x] Feed saved project memory into Goose task context
-- [x] Staged multi-step task planning and handoff into AI Workspace
-- [x] Git branch creation, staged-only commit, push and GitHub CLI pull-request actions behind explicit approval
-- [x] True unified diff parsing and per-file patch review for Goose proposals
-- [x] Automated Developer Intelligence, source graph, build diagnostic and Agent Orchestrator regression tests
+- [x] Add staged multi-step task planning and handoff into AI Workspace
+- [x] Add Git branch creation, staged-only commit, push and GitHub CLI pull-request actions behind explicit approval
+- [x] Add Unity editor discovery in system and user Unity Hub locations
+- [x] Support npm/yarn/pnpm package manager detection and non-watch test execution
+- [x] Add true unified diff parsing and per-file patch review for Goose proposals
+- [x] Add automated Developer Intelligence, source graph, build diagnostic and Agent Orchestrator regression tests
+- [x] Add automated regression coverage for unified diff parsing, unsafe paths, stale patch context, file-change safety, Xcode Debug/Release planning, web build/test planning and Git input validation
 - [x] Goose CLI process adapter with live output and cancellation
 - [x] Provider/model preferences persisted locally and API key stored in macOS Keychain
 - [x] AI Workspace task submission with explicit per-run approval
 - [x] AI agent output and completion recorded in persistent Activity history
+- [x] Parse multi-file Goose unified diffs with project-relative path and hunk-context validation
 - [x] Review original and proposed file contents line-by-line, with per-file reject/apply actions
 - [x] Apply approved AI patches through ProjectFileChangeService with backup and stale-file checks
 - [x] Run project build/test commands from the review flow after a separate explicit approval
 - [x] Return failed build/test logs to Goose for a proposed fix, with a two-attempt review loop
-- [x] Deterministic directed graph layout from resolved local import/include edges and native SwiftUI Canvas rendering
-- [x] Persist workflow attempt counts, sanitized output excerpts, result summaries and error messages
-- [x] Restore completed Architect and Planner output excerpts into Implementer context after build-fix retry or relaunch
-- [x] Redact credential-like values before Goose build-log handoff and before saving step output excerpts
-- [x] Build adapter end-to-end infrastructure: real CODO Xcode Debug/Release builds in CI, real npm build/test fixture, and Unity invocation fixture
-- [x] Subprocess timeout handling for build adapter E2E tests
-- [x] ANSI terminal color removal, Unity C# and MSBuild diagnostic parsing, credential redaction, deterministic limits and cross-file recurring-error fingerprints
-- [x] Goose workflow recovery regression: completed stages retain succeeded status and attempt counts across retry; Implement stage retries and receives prior sanitized context
 
 ## Security boundaries
 Current command execution uses fixed, typed command cases and Foundation Process with explicit executable paths and argument arrays. No arbitrary shell string is accepted. Build/test commands require a per-run user approval. File writes are limited to supported text files inside the imported project root, are reviewed before apply, are backed up under Application Support/CODO/Backups, and are rejected if the original file changed after review. Destructive commands, OS-level changes, and autonomous broad file access are not enabled.
 
-## Validation and known limits
-- PR #5 latest head: [GitHub Actions run 41735036198](https://github.com/khaoswav/CODO/actions/runs/41735036198), Debug and Release both successful.
-- PR #6 latest head: [GitHub Actions run 41735004445](https://github.com/khaoswav/CODO/actions/runs/41735004445), Debug and Release both successful.
-- Earlier expanded diagnostics and cross-file recurrence suite passed Debug/Release in run 41734538595.
-- Timeout-hardened build adapter E2E passed Debug/Release in run 41733542952.
-- The web fixture executes actual npm build/test scripts and verifies its artifact. Unity CI uses a mock Editor binary to verify invocation arguments; it does not run a licensed Unity Editor.
-- CODO's Xcode project is built in CI, but the app has not yet been launched or visually validated on the user's physical Mac.
-- Real local Xcode, licensed Unity Editor, user web-project builds, provider-backed Goose execution and authenticated GitHub CLI remain unverified on the user's Mac.
-- The role-based Goose pipeline runs sequential stages through the configured Goose CLI, not parallel independent agents. Goose's analysis-only prompt is not a hard sandbox.
-- Dependency graph is a static import/include view, not a compiler-generated symbol graph or runtime call graph. Quality findings are heuristics, not formal security audit results.
+## Developer Intelligence validation
+- Recursive source/config inventory is bounded to 4,000 files and 256 KB per file; common generated/vendor directories are skipped.
+- Dependency edges are inferred from language imports/includes and package.json/Unity package manifests. Unambiguous local imports resolve into file-to-file edges; external or ambiguous imports are not guessed. This is a static map, not a compiler-level graph.
+- Quality/performance findings are heuristic indicators, not a compiler, runtime profiler or formal security audit. Credential-like values are never shown in the report.
+- Project memory is stored locally per project UUID under Application Support/CODO/ProjectMemory and is included in Goose prompts.
+- Build errors are fingerprinted, categorized and merged by signature. Common missing-symbol/module, linker, signing, package-resolution and type-check failures receive targeted next-step hints. Credential-like values are redacted before memory storage and when included in build diagnostics.
+- Multi-step plans run as sequential role-specific Goose calls: Architect, Planner, Implementer and Reviewer. They share the configured Goose provider/model; these are separate prompted stages, not parallel independent models. Each stage has persisted status and failure/retry handling.
+- The Reviewer Agent returns findings for the human patch review. It does not apply changes. Every file still needs explicit approval, and builds/tests require a separate approval.
+- Git integration uses fixed Git argument arrays. Commit only includes already staged files. Push and PR creation require a separate approval; PR creation requires an installed and authenticated GitHub CLI.
+
+## AI Patch Review + Build/Fix validation
+- Goose unified diff parser accepts modifications to existing supported text files only. It rejects new/deleted/renamed files, unsafe paths, unsupported extensions, oversized patches, and context mismatches.
+- Hunk application honors each unified diff source line offset and verifies context against the current file before preparing a change.
+- Review UI shows original and proposed content with line numbers; each file has independent Reject and Approve & Apply actions.
+- Approved writes use the existing project-root checks, stale-file detection, and automatic backup.
+- After all accepted changes are applied, Debug/Release or web/Unity build/test actions can be selected. Each action has a separate confirmation and is executed through the typed command queue.
+- Failed build/test output can be sent back to Goose for a proposed patch. The UI limits this feedback cycle to two fix attempts; every new patch still requires per-file review and approval.
+- The build feedback loop is user-controlled, not an unattended agent loop. Failed build diagnostics are saved locally and sent to Goose only after the user chooses the fix action.
+
+## Goose Integration validation
+- Goose CLI adapter, provider settings UI, Keychain storage, approval prompt, live output, cancellation and Activity history are implemented.
+- Goose runs sequential Architect, Planner, Implementer and Reviewer role prompts using the configured provider/model. These roles share the same Goose CLI/model, rather than running as parallel independent agents.
+- Goose is instructed to operate in analysis/proposal-only mode. This prompt is not a hard sandbox; the CLI and its configured extensions may still have capabilities. Do not treat it as an enforced read-only boundary.
+- Unified diff proposals are parsed and shown in the per-file review sheet. Only supported modifications to existing text files are accepted.
+- Saved project memory is appended to Goose task context. This includes the latest project scan summary, purpose, architecture notes, previous decisions and next steps.
+
+## Validation
+- Task Engine milestone CI: Debug and Release succeeded on commit b5c29334f5884adf3365529c7a11e1b95f565f75.
+- An earlier Command Approval + Build Engine CI attempt exposed a Swift optional-chaining parse error in Xcode scheme discovery; the source was corrected in commit 3f8d93d.
+- Goose integration CI exposed that GooseConfiguration needed Codable conformance for preference persistence; fixed in commit 8e91be7.
+- Follow-up improvements add npm/yarn/pnpm detection and Unity Hub editor discovery. Goose integration CI initially exposed a duplicate PBX object ID, corrected in commit 12f4d5d. Developer Intelligence CI exposed a missing Xcode project registration for GitWorkflowService.swift; the file reference and source build entry were added in commit 1300410d.
+- Developer Intelligence test runs caught and fixed project-root URL normalization in the recursive scanner, and a retry-stage selector that could mistake the Planner step for the Implementer step. Fixes are in commits 71628b1, 57da220 and 120f900.
+- Latest CI run 41726171868 succeeded: all six Developer Intelligence/Agent Orchestrator test groups passed, and both Debug and Release Xcode builds succeeded.
+- PR #3 regression-hardening CI run 41731717894 succeeded: the expanded regression test stage and Xcode Debug/Release builds passed in both jobs. Release build log ends with `** BUILD SUCCEEDED **`.
+- Build adapters are implemented but have not yet been run against real Xcode, Unity or web projects on the user's Mac.
+- Physical Mac launch and visual validation have not been performed.
+
+## Regression and personal-use hardening
+- Added a dedicated regression test stage for unified diff parsing, path traversal rejection, stale patch context, project file boundary enforcement, stale review protection, Xcode Debug/Release planning, web build/test script selection, and Git branch/base/commit argument validation.
+- Git branch and base validation plus staged commit argument construction are exposed as deterministic policy helpers so the same rules can be regression-tested without executing Git mutations.
+- The macOS workflow now runs for pull requests targeting any branch, which supports this stacked personal-development workflow.
+- These tests are automated CI checks; they do not replace running CODO against real local projects on the user's Mac.
 
 ## Next
-- [ ] Keep PR #5 and PR #6 open and draft. Do not merge without explicit user authorization.
-- [ ] Before any real Goose or physical Mac validation, optionally inspect PR branch/base ancestry and verify the stacked diff relationship remains intentional.
-- [ ] After the user explicitly chooses to move beyond CI-only validation, test a real provider-backed Goose task, including persistence/resume, patch review, separately approved build, cancellation and build-fix retry.
-- [ ] Validate real Xcode, licensed Unity Editor and web adapters on the physical Mac. Clearly report any part not tested.
+- [ ] Physically launch CODO on the user's Mac and inspect the native dependency graph.
+- [ ] Validate the graph against representative Swift, Unity C# and web projects.
+- [ ] Run the complete sequential Goose workflow with a configured provider, including patch review, approved build, cancellation and build-fix retry.
+- [ ] Validate real Xcode, Unity and web build adapters plus authenticated GitHub CLI on the user's Mac.
+- [ ] After PR #1 is merged, re-check PR #2's base/diff and finalize the dependent change.
+
+
+## Developer Intelligence Graph + Agent Orchestrator refinement
+- [x] Add deterministic directed graph layout from resolved local import/include edges.
+- [x] Render a native SwiftUI Canvas dependency graph with arrow direction, connected-file prioritization and bounded node/edge counts.
+- [x] Keep ambiguous and external imports out of the local source graph instead of inventing links.
+- [x] Persist per-step attempt counts, sanitized output excerpts, result summaries and error messages.
+- [x] Keep the initial Goose stage in an explicit awaiting-approval state until the user approves the run.
+- [x] Track explicit cancelled workflow/step states and cancel downstream pending stages when a workflow is stopped or superseded.
+- [x] Connect Goose architect, planner, implementer and reviewer completions to orchestrator state transitions and saved output.
+- [x] Connect build success, build failure and cancellation events to the matching orchestrator step.
+- [x] Allow an explicitly requested build-fix retry to recover a persisted failed workflow after relaunch and restart at the Implementer stage.
+- [x] Restore the completed Architect and Planner output excerpts into the Implementer context after a build-fix retry or app relaunch.
+- [x] Redact credential-like values before Goose build-log handoff and before saving step output excerpts.
+- [x] Expand automated coverage for dependency graph direction, project scanning, build-log fingerprinting/redaction, workflow persistence/recovery, retry counts and cancellation.
+- [x] Verify the latest refinement head with the full Debug and Release CI run: run 41730013779 passed all 8 test groups and both Debug/Release Xcode builds.
+- [ ] Validate the rendered graph and live Goose workflow on the user's physical Mac.
+
+### Scope and limits
+- The graph is a static import/include dependency view. It is not a compiler-generated symbol graph and does not infer runtime call relationships.
+- The role-based Goose pipeline runs stages sequentially through the configured Goose CLI. It is not parallel multi-process subagent execution.
+- Build diagnostics are locally fingerprinted and categorized using deterministic rules; suggested fixes are guidance, not guaranteed root-cause proof.
+- File apply and build/test remain approval-gated. Goose's analysis-only prompt is not a hard sandbox.
+- Physical Mac launch, visual inspection and real project execution have not yet been performed.
+
+
+## Build adapter end-to-end infrastructure (PR #4)
+- [x] Add an injectable Unity editor search-root seam so the Unity command contract can be tested without depending on a machine-global installation.
+- [x] Add a temporary Unity project fixture with a mock Editor executable; execute the planned argument vector and verify batch mode, project path, macOS target and output arguments.
+- [x] Add a temporary web project fixture and execute its actual npm build and test scripts, verifying the generated build artifact.
+- [x] Execute the actual repository's CODO.xcodeproj build through ProjectBuildPlanner for the Debug/Release CI matrix.
+- [x] Keep all fixture files in temporary directories and avoid mutating user projects.
+- [x] Verify the end-to-end harness in GitHub Actions for both Debug and Release (runs 41733102435 and timeout-hardened run 41733542952 passed both configurations).
+- [ ] Run the adapters against the user's actual Xcode, Unity and web projects on the physical Mac. The Unity CI fixture validates invocation only; it does not replace a licensed Unity Editor build.
+- [x] Add subprocess timeouts to the E2E harness and verify the timeout-hardened implementation in Debug and Release CI (run 41733542952).
+
+
+## Build log diagnostics hardening (PR #5)
+- [x] Strip ANSI terminal color sequences before build diagnostic extraction and Goose log handoff.
+- [x] Recognize Unity C# compiler errors and MSBuild error codes without misclassifying MSBuild warnings.
+- [x] Enforce zero and positive diagnostic result limits deterministically.
+- [x] Add regression fixtures for ANSI-colored output, CRLF logs, Unity CS0246, MSBuild errors/warnings, redaction and result limits.
+- [x] Fingerprint recurring compiler failures by error code and diagnostic payload rather than source path/line, while preserving symbol names to avoid merging distinct missing-type errors.
+- [x] Add cross-file recurrence tests for Swift and Unity diagnostics.
+- [x] Verify the expanded diagnostics and cross-file recurrence regression suite in GitHub Actions Debug and Release (run 41734538595, Debug + Release success).
+- [ ] Validate diagnostic behavior against real local Xcode, Unity and web build logs on the user's Mac.
+
+
+## PR #5 latest CI confirmation
+- [x] Latest PR #5 head CI run 41735036198 passed both Debug and Release, including Developer Intelligence and Build Adapter E2E.
+- [x] PR #6 recovery-context CI run 41735004445 passed both Debug and Release, including Developer Intelligence and Build Adapter E2E.
+- [x] Corrected PR #6 recovery assertions to use the actual persisted stage titles: "Understand the request", "Plan the implementation", and "Implement the change".
+- [ ] PRs remain open and draft. No merge has been authorized or performed.
+- [ ] Real provider-backed Goose execution and physical Mac validation remain intentionally deferred.
