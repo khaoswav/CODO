@@ -110,14 +110,6 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - The macOS workflow now runs for pull requests targeting any branch, which supports this stacked personal-development workflow.
 - These tests are automated CI checks; they do not replace running CODO against real local projects on the user's Mac.
 
-## Next
-- [ ] Physically launch CODO on the user's Mac and inspect the native dependency graph.
-- [ ] Validate the graph against representative Swift, Unity C# and web projects.
-- [ ] Run the complete sequential Goose workflow with a configured provider, including patch review, approved build, cancellation and build-fix retry.
-- [ ] Validate real Xcode, Unity and web build adapters plus authenticated GitHub CLI on the user's Mac.
-- [ ] After PR #1 is merged, re-check PR #2's base/diff and finalize the dependent change.
-
-
 ## Developer Intelligence Graph + Agent Orchestrator refinement
 - [x] Add deterministic directed graph layout from resolved local import/include edges.
 - [x] Render a native SwiftUI Canvas dependency graph with arrow direction, connected-file prioritization and bounded node/edge counts.
@@ -141,7 +133,6 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - File apply and build/test remain approval-gated. Goose's analysis-only prompt is not a hard sandbox.
 - Physical Mac launch, visual inspection and real project execution have not yet been performed.
 
-
 ## Build adapter end-to-end infrastructure (PR #4)
 - [x] Add an injectable Unity editor search-root seam so the Unity command contract can be tested without depending on a machine-global installation.
 - [x] Add a temporary Unity project fixture with a mock Editor executable; execute the planned argument vector and verify batch mode, project path, macOS target and output arguments.
@@ -151,7 +142,6 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - [x] Verify the end-to-end harness in GitHub Actions for both Debug and Release (runs 41733102435 and timeout-hardened run 41733542952 passed both configurations).
 - [ ] Run the adapters against the user's actual Xcode, Unity and web projects on the physical Mac. The Unity CI fixture validates invocation only; it does not replace a licensed Unity Editor build.
 - [x] Add subprocess timeouts to the E2E harness and verify the timeout-hardened implementation in Debug and Release CI (run 41733542952).
-
 
 ## Build log diagnostics hardening (PR #5)
 - [x] Strip ANSI terminal color sequences before build diagnostic extraction and Goose log handoff.
@@ -163,7 +153,6 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - [x] Verify the expanded diagnostics and cross-file recurrence regression suite in GitHub Actions Debug and Release (run 41734538595, Debug + Release success).
 - [ ] Validate diagnostic behavior against real local Xcode, Unity and web build logs on the user's Mac.
 
-
 ## PR #5 latest CI confirmation
 - [x] Latest PR #5 head CI run 41735036198 passed both Debug and Release, including Developer Intelligence and Build Adapter E2E.
 - [x] PR #6 recovery-context CI run 41735004445 passed both Debug and Release, including Developer Intelligence and Build Adapter E2E.
@@ -171,10 +160,21 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - [ ] PRs remain open and draft. No merge has been authorized or performed.
 - [ ] Real provider-backed Goose execution and physical Mac validation remain intentionally deferred.
 
-
 ## PR #6 rebased recovery validation
 - [x] Rebase the PR #6 recovery regression onto the latest PR #5 head without merging either PR.
 - [x] Preserve completed Understand/Plan stage status and attempt-count assertions.
 - [x] Preserve restored stage-context and credential-redaction assertions.
 - [x] Verify the rebased recovery regression in GitHub Actions Debug and Release (run 41736781378: Debug and Release succeeded, including Developer Intelligence and Build Adapter E2E).
+- [x] Final PR #6 head CI run 41737150334 passed both Debug and Release, including Developer Intelligence and Build Adapter E2E.
 - [ ] Full provider-backed Goose workflow and physical Mac validation remain deferred.
+
+## Goose CLI process integration (PR #7)
+- [x] Add injectable Goose executable and API-key provider seams so process behavior can be tested without reading or writing the user's Keychain.
+- [x] Add a deterministic fake-CLI integration fixture that verifies provider/model/API-key environment handoff and the task prompt.
+- [x] Verify that the approval gate prevents process launch and missing provider credentials fail closed.
+- [x] Add a process cancellation fixture that verifies termination completion and running-state cleanup.
+- [x] Add the Goose CLI integration executable to the Debug/Release macOS CI matrix.
+- [x] Verify PR #7 CI run 41738023330: Debug and Release passed Developer Intelligence, Goose CLI Process Integration, and Build Adapter E2E.
+- [ ] Run a real provider-backed Goose task on the user's Mac. Fake-CLI CI does not prove provider authentication, model availability or live Goose behavior.
+- [ ] Physically launch CODO and validate the complete UI workflow on the user's Mac.
+- [ ] PR #7 remains open and draft. No PR has been merged.

@@ -40,6 +40,16 @@ jobs:
             -framework SwiftUI \
             -o "$RUNNER_TEMP/codo-intelligence-tests"
           "$RUNNER_TEMP/codo-intelligence-tests"
+      - name: Run Goose CLI process integration tests
+        run: |
+          swiftc -parse-as-library \
+            CODO/Models/CODOProject.swift \
+            CODO/Services/GooseAgentService.swift \
+            Tests/GooseAgentIntegrationTests.swift \
+            -framework SwiftUI \
+            -framework Security \
+            -o "$RUNNER_TEMP/codo-goose-integration-tests"
+          "$RUNNER_TEMP/codo-goose-integration-tests"
       - name: Run build adapter end-to-end tests
         env:
           CODO_BUILD_CONFIGURATION: ${{ matrix.configuration }}
