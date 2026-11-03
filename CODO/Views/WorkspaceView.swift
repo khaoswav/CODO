@@ -41,6 +41,7 @@ struct WorkspaceView: View {
                     project: project,
                     root: root,
                     onBuildFailure: { log in
+                        showPatchReview = false
                         guard fixAttempts < 2 else {
                             patchError = "The automatic fix limit (2 attempts) has been reached. Review the build log and start a new task if needed."
                             return
