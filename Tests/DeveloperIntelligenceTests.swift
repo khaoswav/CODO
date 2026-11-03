@@ -138,10 +138,10 @@ struct DeveloperIntelligenceTests {
 
         try expect(store.activeWorkflow?.steps.first?.status == .running, "Workflow should start its first stage")
         try expect(store.activeWorkflow?.steps.first?.attemptCount == 1, "First stage should record its initial attempt")
-        store.completeCurrentAndAdvance("Architecture inspected.", output: "API_KEY=super-secret-agent-output")
+        store.completeCurrentAndAdvance("Architecture inspected.", output: "ARCHITECTURE_CONTEXT API_KEY=super-secret-agent-output")
         try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Plan") })?.status == .running,
                    "Orchestrator should run the planning stage after architecture")
-        store.completeCurrentAndAdvance("Implementation plan prepared.")
+        store.completeCurrentAndAdvance("Implementation plan prepared.", output: "PLAN_CONTEXT: preserve the architecture decisions.")
         try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Implement") })?.status == .running,
                    "Orchestrator should enter implementation before Goose runs")
         store.proposalReady()
