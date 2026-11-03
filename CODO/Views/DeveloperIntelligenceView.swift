@@ -501,37 +501,63 @@ struct DeveloperIntelligenceView: View {
                     Text(workflow.status.rawValue.uppercased())
                         .font(.system(size: 8, weight: .bold))
                         .foregroundStyle(workflow.status == .failed ? CODOTheme.red :
-                            workflow.status == .succeeded ? CODOTheme.green : CODOTheme.orange)
+                            workflow.status == .succeeded ? CODOTheme.green :
+                            workflow.status == .cancelled ? CODOTheme.mutedText : CODOTheme.orange)
                 }
             }
             if let workflow {
                 Text(workflow.request).font(.system(size: 10)).foregroundStyle(CODOTheme.secondaryText)
                     .lineLimit(3)
-                ForEach(workflow.steps.indices, id: \.self) { index in
+                ForEach(workflow.steps.indices, id: \\.self) { index in
                     let step = workflow.steps[index]
-                    HStack(alignment: .top, spacing: 9) {
-                        Image(systemName: step.status == .succeeded ? "checkmark.circle.fill" :
-                                step.status == .running ? "arrow.trianglehead.2.clockwise.circle.fill" :
-                                step.status == .awaitingApproval ? "hand.raised.circle.fill" :
-                                step.status == .failed ? "xmark.circle.fill" : "circle")
-                            .foregroundStyle(step.status == .succeeded ? CODOTheme.green :
-                                step.status == .failed ? CODOTheme.red :
-                                step.status == .awaitingApproval ? CODOTheme.orange : CODOTheme.mutedText)
-                            .frame(width: 16)
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack {
-                                Text("\(index + 1). \(step.title)").font(.system(size: 10, weight: .semibold))
-                                Spacer()
-                                Text(step.status.rawValue.uppercased())
-                                    .font(.system(size: 8, weight: .bold))
-                                    .foregroundStyle(CODOTheme.secondaryText)
-                            }
-                            if let result = step.resultSummary {
-                                Text(result).font(.system(size: 9)).foregroundStyle(CODOTheme.secondaryText)
-                                    .lineLimit(2)
+                    let statusIcon = step.status == .succeeded ? "checkmark.circle.fill" :
+                        step.status == .running ? "arrow.trianglehead.2.clockwise.circle.fill" :
+                        step.status == .awaitingApproval ? "hand.raised.circle.fill" :
+                        step.status == .failed ? "xmark.circle.fill" :
+                        step.status == .cancelled ? "minus.circle.fill" : "circle"
+                    let statusTint = step.status == .succeeded ? CODOTheme.green :
+                        step.status == .failed ? CODOTheme.red :
+                        step.status == .awaitingApproval ? CODOTheme.orange : CODOTheme.mutedText
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(alignment: .top, spacing: 9) {
+                            Image(systemName: statusIcon)
+                                .foregroundStyle(statusTint)
+                                .frame(width: 16)
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack {
+                                    Text("\\(index + 1). \\(step.title)").font(.system(size: 10, weight: .semibold))
+                                    Spacer()
+                                    Text(step.status.rawValue.uppercased())
+                                        .font(.system(size: 8, weight: .bold))
+                                        .foregroundStyle(CODOTheme.secondaryText)
+                                }
+                                if let attempts = step.attemptCount, attempts > 1 {
+                                    Text("Attempt \\(attempts)").font(.system(size: 8, design: .monospaced))
+                                        .foregroundStyle(CODOTheme.mutedText)
+                                }
+                                if let result = step.resultSummary {
+                                    Text(result).font(.system(size: 9)).foregroundStyle(CODOTheme.secondaryText)
+                                        .lineLimit(2)
+                                }
+                                if let error = step.errorMessage {
+                                    Text(error).font(.system(size: 9)).foregroundStyle(CODOTheme.red)
+                                        .textSelection(.enabled)
+                                }
+                                if let output = step.outputExcerpt, !output.isEmpty {
+                                    DisclosureGroup("Step output") {
+                                        Text(output)
+                                            .font(.system(size: 9, design: .monospaced))
+                                            .textSelection(.enabled)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(7)
+                                            .background(CODOTheme.elevated, in: RoundedRectangle(cornerRadius: 6))
+                                    }
+                                    .font(.system(size: 9))
+                                }
                             }
                         }
                     }
+                    .padding(.vertical, 3)
                 }
                 if let failure = workflow.lastFailure {
                     Text(failure).font(.system(size: 9)).foregroundStyle(CODOTheme.red)
@@ -547,7 +573,7 @@ struct DeveloperIntelligenceView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(CODOTheme.border, lineWidth: 1))
     }
 
-    private var gitWorkflowPanel: some View {
+        private var gitWorkflowPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label("Git workflow", systemImage: "arrow.triangle.branch")
