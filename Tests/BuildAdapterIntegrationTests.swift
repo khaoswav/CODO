@@ -143,19 +143,25 @@ struct BuildAdapterIntegrationTests {
     static func execute(_ command: PlannedCommand, workingDirectory: URL,
                         environment additions: [String: String] = [:]) throws -> String {
         let process = Process()
-        let pipe = Pipe()
+        let logURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CODO-Command-\(UUID().uuidString).log")
+        guard FileManager.default.createFile(atPath: logURL.path, contents: nil) else {
+            throw HarnessFailure.assertion("Could not create a temporary command log")
+        }
+        defer { try? FileManager.default.removeItem(at: logURL) }
+        let logHandle = try FileHandle(forWritingTo: logURL)
         process.executableURL = command.executable
         process.arguments = command.arguments
         process.currentDirectoryURL = workingDirectory
-        process.standardOutput = pipe
-        process.standardError = pipe
+        process.standardOutput = logHandle
+        process.standardError = logHandle
         var environment = ProcessInfo.processInfo.environment
         additions.forEach { environment[$0.key] = $0.value }
         process.environment = environment
         try process.run()
-        try? pipe.fileHandleForWriting.close()
-        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
         process.waitUntilExit()
+        try? logHandle.close()
+        let output = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
         guard process.terminationStatus == 0 else {
             throw HarnessFailure.assertion(
                 "Command failed (exit \(process.terminationStatus)): \(command.display)\n\(lastLines(output, count: 35))"
