@@ -1,0 +1,151 @@
+import Foundation
+import SwiftUI
+
+enum ProjectCommand: String, CaseIterable, Identifiable {
+    case location = "Working directory"
+    case listFiles = "List files"
+    case gitStatus = "Git status"
+    case xcodeTargets = "Xcode targets"
+    case swiftVersion = "Swift version"
+    case nodeVersion = "Node.js version"
+    case npmVersion = "npm version"
+
+    var id: String { rawValue }
+
+    var executable: URL {
+        switch self {
+        case .location: URL(fileURLWithPath: "/bin/pwd")
+        case .listFiles: URL(fileURLWithPath: "/bin/ls")
+        case .gitStatus: URL(fileURLWithPath: "/usr/bin/git")
+        case .xcodeTargets: URL(fileURLWithPath: "/usr/bin/xcodebuild")
+        case .swiftVersion: URL(fileURLWithPath: "/usr/bin/swift")
+        case .nodeVersion, .npmVersion: URL(fileURLWithPath: "/usr/bin/env")
+        }
+    }
+
+    var arguments: [String] {
+        switch self {
+        case .location: []
+        case .listFiles: ["-la"]
+        case .gitStatus: ["status", "--short", "--branch"]
+        case .xcodeTargets: ["-list"]
+        case .swiftVersion: ["--version"]
+        case .nodeVersion: ["node", "--version"]
+        case .npmVersion: ["npm", "--version"]
+        }
+    }
+
+    var displayCommand: String {
+        ([executable.lastPathComponent] + arguments).joined(separator: " ")
+    }
+
+    static func available(for kind: ProjectKind) -> [ProjectCommand] {
+        switch kind {
+        case .macOS, .iOS:
+            [.location, .listFiles, .gitStatus, .xcodeTargets, .swiftVersion]
+        case .web:
+            [.location, .listFiles, .gitStatus, .nodeVersion, .npmVersion]
+        case .unity:
+            [.location, .listFiles, .gitStatus]
+        case .other:
+            [.location, .listFiles, .gitStatus]
+        }
+    }
+}
+
+@MainActor
+final class ProjectProcessRunner: ObservableObject {
+    @Published private(set) var output = ""
+    @Published private(set) var status = "Ready"
+    @Published private(set) var isRunning = false
+
+    private var process: Process?
+    private var outputPipe: Pipe?
+    private var scopedRoot: URL?
+
+    func run(_ command: ProjectCommand, for project: CODOProject, root: URL) {
+        guard !isRunning else { return }
+        let workingDirectory = root.standardizedFileURL
+        guard FileManager.default.fileExists(atPath: workingDirectory.path) else {
+            output = "Project folder is no longer available. Re-import the project."
+            status = "Project unavailable"
+            return
+        }
+
+        let needsScope = project.bookmarkData != nil
+        if needsScope && !workingDirectory.startAccessingSecurityScopedResource() {
+            output = "CODO could not obtain access to this project folder. Re-import it and grant folder access again."
+            status = "Permission denied"
+            return
+        }
+
+        let task = Process()
+        let pipe = Pipe()
+        task.executableURL = command.executable
+        task.arguments = command.arguments
+        task.currentDirectoryURL = workingDirectory
+        task.standardOutput = pipe
+        task.standardError = pipe
+
+        output = "$ \(command.displayCommand)\n\n"
+        status = "Starting…"
+        scopedRoot = needsScope ? workingDirectory : nil
+        outputPipe = pipe
+        process = task
+
+        pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            guard !data.isEmpty else {
+                handle.readabilityHandler = nil
+                return
+            }
+            let text = String(decoding: data, as: UTF8.self)
+            DispatchQueue.main.async {
+                self?.output.append(text)
+            }
+        }
+
+        task.terminationHandler = { [weak self] finished in
+            DispatchQueue.main.async {
+                self?.finish(exitCode: finished.terminationStatus)
+            }
+        }
+
+        do {
+            try task.run()
+            isRunning = true
+            status = "Running"
+        } catch {
+            pipe.fileHandleForReading.readabilityHandler = nil
+            process = nil
+            outputPipe = nil
+            scopedRoot?.stopAccessingSecurityScopedResource()
+            scopedRoot = nil
+            output.append("Failed to start process: \(error.localizedDescription)\n")
+            status = "Failed to start"
+        }
+    }
+
+    func stop() {
+        guard let process, process.isRunning else { return }
+        status = "Stopping…"
+        process.terminate()
+    }
+
+    func clear() {
+        guard !isRunning else { return }
+        output = ""
+        status = "Ready"
+    }
+
+    private func finish(exitCode: Int32) {
+        outputPipe?.fileHandleForReading.readabilityHandler = nil
+        outputPipe = nil
+        process = nil
+        isRunning = false
+        scopedRoot?.stopAccessingSecurityScopedResource()
+        scopedRoot = nil
+        status = exitCode == 0 ? "Completed · exit 0" : "Finished · exit \(exitCode)"
+        if !output.hasSuffix("\n") { output.append("\n") }
+    }
+}
