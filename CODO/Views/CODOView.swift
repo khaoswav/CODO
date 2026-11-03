@@ -23,6 +23,7 @@ enum WorkspaceTab: String, CaseIterable, Identifiable {
 
 struct CODOView: View {
     @EnvironmentObject private var store: ProjectStore
+    @StateObject private var taskQueue = TaskQueueStore()
     @State private var tab: WorkspaceTab = .overview
 
     var body: some View {
@@ -47,6 +48,7 @@ struct CODOView: View {
         }
         .background(CODOTheme.background)
         .foregroundStyle(CODOTheme.primaryText)
+        .environmentObject(taskQueue)
     }
 
     private var topBar: some View {
