@@ -76,6 +76,8 @@ final class GooseAgentService: ObservableObject {
     private var process: Process?
     private var pipe: Pipe?
     private var scopedRoot: URL?
+    private let executableOverride: URL?
+    private let apiKeyProvider: () -> String?
 
     var configuration: GooseConfiguration {
         didSet {
@@ -85,7 +87,9 @@ final class GooseAgentService: ObservableObject {
         }
     }
 
-    init() {
+    init(executableURL: URL? = nil, apiKeyProvider: @escaping () -> String? = { CODOKeychain.read() }) {
+        executableOverride = executableURL
+        self.apiKeyProvider = apiKeyProvider
         if let data = UserDefaults.standard.data(forKey: "goose.configuration"),
            let saved = try? JSONDecoder().decode(GooseConfiguration.self, from: data) {
             configuration = saved
@@ -99,7 +103,7 @@ final class GooseAgentService: ObservableObject {
     var isConfigured: Bool {
         !configuration.provider.isEmpty &&
         !configuration.model.isEmpty &&
-        CODOKeychain.read() != nil
+        apiKeyProvider() != nil
     }
 
     func saveAPIKey(_ key: String) throws {
@@ -113,6 +117,9 @@ final class GooseAgentService: ObservableObject {
     }
 
     func locateGoose() -> URL? {
+        if let executableOverride, FileManager.default.isExecutableFile(atPath: executableOverride.path) {
+            return executableOverride
+        }
         let candidates = [
             "/opt/homebrew/bin/goose",
             "/usr/local/bin/goose",
@@ -160,7 +167,7 @@ final class GooseAgentService: ObservableObject {
         var environment = ProcessInfo.processInfo.environment
         environment["GOOSE_PROVIDER"] = configuration.provider
         environment["GOOSE_MODEL"] = configuration.model
-        if let key = CODOKeychain.read() {
+        if let key = apiKeyProvider() {
             environment["GOOSE_API_KEY"] = key
             if configuration.provider == "openai" { environment["OPENAI_API_KEY"] = key }
             if configuration.provider == "anthropic" { environment["ANTHROPIC_API_KEY"] = key }
