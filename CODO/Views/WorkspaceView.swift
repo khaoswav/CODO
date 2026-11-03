@@ -5,6 +5,7 @@ struct WorkspaceView: View {
     let onPromptConsumed: () -> Void
     @EnvironmentObject private var store: ProjectStore
     @EnvironmentObject private var taskQueue: TaskQueueStore
+    @EnvironmentObject private var orchestrator: AgentOrchestratorStore
     @StateObject private var agent = GooseAgentService()
     @State private var prompt = ""
     @State private var apiKey = ""
@@ -44,6 +45,8 @@ struct WorkspaceView: View {
                     root: root,
                     onBuildFailure: { log in
                         showPatchReview = false
+                        orchestrator.resumeForFix()
+                        store.recordBuildFailure(project, log: log)
                         guard fixAttempts < 2 else {
                             patchError = "The automatic fix limit (2 attempts) has been reached. Review the build log and start a new task if needed."
                             return
@@ -59,6 +62,24 @@ struct WorkspaceView: View {
                         \(String(log.suffix(24_000)))
                         """
                         showRunApproval = true
+                    },
+                    onBuildCompletion: { task in
+                        switch task.status {
+                        case .queued:
+                            orchestrator.approveCurrentStep()
+                        case .succeeded:
+                            orchestrator.buildSucceeded()
+                        case .failed:
+                            store.recordBuildFailure(project, log: task.output)
+                            orchestrator.buildFailed("Build/test failed. Diagnostics were saved to project memory.")
+                        case .cancelled:
+                            orchestrator.failCurrentStep("Build/test was cancelled.")
+                        case .running:
+                            break
+                        }
+                    },
+                    onReviewComplete: { applied, rejected in
+                        orchestrator.reviewCompleted(appliedCount: applied, rejectedCount: rejected)
                     },
                     changes: proposedChanges
                 )
@@ -91,15 +112,21 @@ struct WorkspaceView: View {
             agent.onCompletion = { code in
                 if let id = activeHistoryTaskID { taskQueue.finishAgentTask(taskID: id, exitCode: code) }
                 activeHistoryTaskID = nil
-                guard code == 0, let project, let root = store.projectRootURL(for: project) else { return }
+                guard code == 0, let project, let root = store.projectRootURL(for: project) else {
+                    if code != 0 { orchestrator.failCurrentStep("Goose exited with status \\(code).") }
+                    return
+                }
                 do {
                     let parsed = try AIUnifiedDiffParser.parse(agent.output, project: project, root: root)
                     proposedChanges = parsed
+                    orchestrator.proposalReady()
                     showPatchReview = true
                 } catch AIUnifiedDiffError.noChanges {
                     patchError = "Goose did not return any supported file changes. Review its analysis output for details."
+                    orchestrator.failCurrentStep("Goose returned no supported unified diff.")
                 } catch {
                     patchError = error.localizedDescription
+                    orchestrator.failCurrentStep(error.localizedDescription)
                 }
             }
             consumePendingPrompt()
@@ -261,8 +288,10 @@ struct WorkspaceView: View {
         guard let project, let root = store.projectRootURL(for: project) else { return }
         agent.configuration = GooseConfiguration(provider: provider, model: model)
         proposedChanges = []
-        if !isFixRequest { fixAttempts = 0 }
+        let retryingFailedBuild = isFixRequest
+        if !retryingFailedBuild { fixAttempts = 0 }
         isFixRequest = false
+        if retryingFailedBuild { orchestrator.resumeForFix() }
         let memory = store.projectMemory(project)
         var context: [String] = []
         if let summary = memory.lastArchitectureSummary { context.append("LATEST PROJECT SCAN:\n" + summary) }
@@ -272,6 +301,7 @@ struct WorkspaceView: View {
         if !memory.nextSteps.isEmpty { context.append("KNOWN NEXT STEPS:\n" + memory.nextSteps.map { "- " + $0 }.joined(separator: "\n")) }
         let enrichedPrompt = context.isEmpty ? prompt.trimmingCharacters(in: .whitespacesAndNewlines) :
             prompt.trimmingCharacters(in: .whitespacesAndNewlines) + "\n\nPROJECT MEMORY (local notes, treat as context):\n" + context.joined(separator: "\n\n")
+        orchestrator.prepareAgentRunForImplementation()
         activeHistoryTaskID = taskQueue.beginAgentTask(prompt: enrichedPrompt, project: project)
         agent.runAnalysis(
             prompt: enrichedPrompt,
