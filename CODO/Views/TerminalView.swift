@@ -117,7 +117,7 @@ struct TerminalView: View {
                     .tracking(1)
                     .foregroundStyle(CODOTheme.mutedText)
                 Spacer()
-                Button("Clear") { taskQueue.runner.clear(); }
+                Button("Clear") { taskQueue.clearLiveOutput() }
                     .font(.system(size: 11))
                     .buttonStyle(.plain)
                     .foregroundStyle(CODOTheme.secondaryText)
