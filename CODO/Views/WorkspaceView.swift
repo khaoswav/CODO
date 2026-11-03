@@ -152,11 +152,6 @@ struct WorkspaceView: View {
                     orchestrator.failCurrentStep(error.localizedDescription)
                 }
             }
- catch {
-                    patchError = error.localizedDescription
-                    orchestrator.failCurrentStep(error.localizedDescription)
-                }
-            }
             consumePendingPrompt()
         }
         .onChange(of: pendingPrompt) { _, _ in consumePendingPrompt() }
