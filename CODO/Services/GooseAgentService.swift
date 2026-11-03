@@ -171,8 +171,9 @@ final class GooseAgentService: ObservableObject {
         You are working in a CODO-managed project. This is ANALYSIS AND PROPOSAL ONLY.
         Do not create, edit, delete, rename, or move files. Do not run shell commands, builds,
         tests, installers, network commands, or destructive actions. Inspect project files using
-        read-only capabilities only. Return a concise plan, risks, and proposed unified diffs
-        for each suggested file change. Clearly state when more context is needed.
+        read-only capabilities only. Return the analysis requested by the current task. When asked for
+        architecture or planning, do not include code diffs. When asked for implementation proposals,
+        return reviewable unified diffs only. Clearly state when more context is needed.
 
         USER TASK:
         \(prompt)
