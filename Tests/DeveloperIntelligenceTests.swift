@@ -93,6 +93,9 @@ struct DeveloperIntelligenceTests {
                    "Missing-symbol compiler errors should receive a diagnosis category")
         try expect(!diagnostics.contains(where: { $0.message.contains("super-secret-123") }),
                    "Credential-like values must be redacted from build memory")
+        let safeLog = BuildFailureAnalyzer.sanitizeLog("API_KEY=super-secret-123\\nAuthorization: Bearer hidden-token-value")
+        try expect(!safeLog.contains("super-secret-123") && !safeLog.contains("hidden-token-value"),
+                   "Credential-like values must be redacted before Goose log handoff")
         let merged = BuildFailureAnalyzer.merge([diagnostics[0], diagnostics[0]], into: [])
         try expect(merged.count == 1, "Repeated signatures should merge into one memory pattern")
         try expect(merged[0].occurrenceCount == 2, "Pattern occurrence count should increase")
