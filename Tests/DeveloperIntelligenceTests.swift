@@ -186,7 +186,7 @@ struct DeveloperIntelligenceTests {
     @MainActor
     static func testReviewWithoutAppliedChangesCancelsWorkflow() throws {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("CODO-Agent-Cancel-Test-\\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("CODO-Agent-Cancel-Test-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let project = CODOProject(name: "Fixture", path: directory.path, kind: .macOS)
