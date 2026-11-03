@@ -15,7 +15,8 @@ enum ProjectBuildPlanner {
         var executable: String { rawValue }
     }
 
-    static func plan(_ command: ProjectCommand, root: URL, project: CODOProject) -> PlannedCommand? {
+    static func plan(_ command: ProjectCommand, root: URL, project: CODOProject,
+                     unityEditorRoots: [URL]? = nil) -> PlannedCommand? {
         let files = (try? FileManager.default.contentsOfDirectory(atPath: root.path)) ?? []
         switch command {
         case .xcodeDebugBuild, .xcodeReleaseBuild:
@@ -46,7 +47,7 @@ enum ProjectBuildPlanner {
             )
 
         case .unityMacBuild:
-            let editorRoots = [
+            let editorRoots = unityEditorRoots ?? [
                 URL(fileURLWithPath: "/Applications/Unity/Hub/Editor", isDirectory: true),
                 FileManager.default.homeDirectoryForCurrentUser
                     .appendingPathComponent("Applications/Unity/Hub/Editor", isDirectory: true)
