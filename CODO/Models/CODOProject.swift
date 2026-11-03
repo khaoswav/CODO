@@ -14,6 +14,14 @@ struct CODOProject: Identifiable, Codable, Hashable {
     }
 }
 
+struct CODOProjectFile: Identifiable, Hashable {
+    let url: URL
+    let isDirectory: Bool
+    let size: Int64
+    var id: String { url.path }
+    var name: String { url.lastPathComponent }
+}
+
 enum ProjectKind: String, Codable, CaseIterable, Identifiable {
     case macOS = "macOS"
     case iOS = "iOS"
@@ -33,22 +41,11 @@ enum ProjectKind: String, Codable, CaseIterable, Identifiable {
     }
 
     static func detect(at url: URL) -> ProjectKind {
-        let manager = FileManager.default
-        let contents = (try? manager.contentsOfDirectory(atPath: url.path)) ?? []
+        let contents = (try? FileManager.default.contentsOfDirectory(atPath: url.path)) ?? []
         let names = Set(contents.map { $0.lowercased() })
-
-        if names.contains(where: { $0.hasSuffix(".xcodeproj") || $0.hasSuffix(".xcworkspace") }) {
-            return .iOS
-        }
-        if names.contains("assets") && names.contains("projectsettings") {
-            return .unity
-        }
-        if names.contains("package.json") || names.contains("vite.config.js") || names.contains("vite.config.ts") {
-            return .web
-        }
-        if names.contains("contents.xcworkspacedata") {
-            return .iOS
-        }
+        if names.contains(where: { $0.hasSuffix(".xcodeproj") || $0.hasSuffix(".xcworkspace") }) { return .iOS }
+        if names.contains("assets") && names.contains("projectsettings") { return .unity }
+        if names.contains("package.json") || names.contains("vite.config.js") || names.contains("vite.config.ts") { return .web }
         return .other
     }
 }
