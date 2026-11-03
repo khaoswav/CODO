@@ -84,10 +84,9 @@ final class AgentOrchestratorStore: ObservableObject {
 
     func prepareAgentRunForImplementation() {
         guard activeWorkflowID != nil else { return }
-        completeCurrentStep("Project context and saved intelligence loaded.")
-        advanceToNextStep()
-        if activeStep?.requiresApproval == false {
-            completeCurrentStep("Implementation plan prepared.")
+        while let step = activeStep,
+              !step.title.localizedCaseInsensitiveContains("Implement") {
+            completeCurrentStep(step.title + " completed.")
             advanceToNextStep()
         }
     }
