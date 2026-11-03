@@ -92,7 +92,11 @@ final class ProjectProcessRunner: ObservableObject {
     private var outputPipe: Pipe?
     private var scopedRoot: URL?
 
-    func run(_ command: ProjectCommand, for project: CODOProject, root: URL) {
+    func run(_ command: ProjectCommand, for project: CODOProject, root: URL, approvalGranted: Bool = false) {
+        guard !command.requiresApproval || approvalGranted else {
+            fail("This build or test command requires explicit user approval.")
+            return
+        }
         guard !isRunning else { return }
 
         wasStopped = false
