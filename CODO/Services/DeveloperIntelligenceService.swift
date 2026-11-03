@@ -482,8 +482,6 @@ enum BuildFailureAnalyzer {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         payload = payload.replacingOccurrences(of: #"0x[0-9a-f]+"#,
             with: "<address>", options: .regularExpression)
-        payload = payload.replacingOccurrences(of: #"'[^']+'"#,
-            with: "'<symbol>'", options: .regularExpression)
         return [code, payload].filter { !$0.isEmpty }.joined(separator: ":")
     }
 
