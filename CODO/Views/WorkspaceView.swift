@@ -21,6 +21,8 @@ struct WorkspaceView: View {
     @State private var fixAttempts = 0
     @State private var isFixRequest = false
     @State private var agentStageContext = ""
+    @State private var pendingDiffOutput = ""
+    @State private var reviewerNotes = ""
 
     private var project: CODOProject? { store.selectedProject }
 
@@ -44,6 +46,7 @@ struct WorkspaceView: View {
                 AIChangeReviewView(
                     project: project,
                     root: root,
+                    reviewerNotes: reviewerNotes,
                     onBuildFailure: { log in
                         showPatchReview = false
                         guard fixAttempts < 2 else {
@@ -133,14 +136,25 @@ struct WorkspaceView: View {
                         runCurrentAgentStage(project: project, root: root)
                         return
                     }
+                    if stage.localizedCaseInsensitiveContains("Implement") {
+                        pendingDiffOutput = agent.output
+                        agentStageContext += "\n\nIMPLEMENTER PROPOSAL:\n" + pendingDiffOutput
+                        orchestrator.completeCurrentAndAdvance("Implementer agent prepared a unified diff.")
+                        runCurrentAgentStage(project: project, root: root)
+                        return
+                    }
+                    if stage.localizedCaseInsensitiveContains("Review the proposal") {
+                        reviewerNotes = agent.output
+                    }
                 }
 
                 if let id = activeHistoryTaskID {
                     taskQueue.finishAgentTask(taskID: id, exitCode: code)
                 }
                 activeHistoryTaskID = nil
+                let proposal = pendingDiffOutput.isEmpty ? agent.output : pendingDiffOutput
                 do {
-                    let parsed = try AIUnifiedDiffParser.parse(agent.output, project: project, root: root)
+                    let parsed = try AIUnifiedDiffParser.parse(proposal, project: project, root: root)
                     proposedChanges = parsed
                     if orchestrator.currentStepTitle != nil { orchestrator.proposalReady() }
                     showPatchReview = true
@@ -321,6 +335,8 @@ struct WorkspaceView: View {
         }
         agent.configuration = GooseConfiguration(provider: provider, model: model)
         proposedChanges = []
+        pendingDiffOutput = ""
+        reviewerNotes = ""
         let retryingFailedBuild = isFixRequest
         if !retryingFailedBuild { fixAttempts = 0 }
         isFixRequest = false
@@ -368,6 +384,17 @@ struct WorkspaceView: View {
             USER REQUEST: \(task)
 
             PROJECT AND ARCHITECTURE CONTEXT:
+            \(agentStageContext)
+            """
+        } else if stage.localizedCaseInsensitiveContains("Review the proposal") {
+            stagePrompt = """
+            ROLE: INDEPENDENT REVIEWER AGENT
+            Review the implementer's unified diff without modifying it. Look for correctness issues,
+            security risks, missing edge cases, unintended scope expansion and likely build/test regressions.
+            Return concise findings and any blocking concerns. Do not produce a replacement diff.
+            USER REQUEST: \(task)
+
+            ARCHITECTURE, PLAN AND PROPOSED DIFF:
             \(agentStageContext)
             """
         } else if stage.localizedCaseInsensitiveContains("Implement") {
