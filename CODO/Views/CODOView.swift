@@ -40,7 +40,10 @@ struct CODOView: View {
                     case .overview: DashboardView(selectedTab: $tab)
                     case .files: ProjectBrowserView()
                     case .project: ProjectOverviewView()
-                    case .intelligence: DeveloperIntelligenceView()
+                    case .intelligence: DeveloperIntelligenceView(onStartTask: { task in
+                        tab = .workspace
+                        NotificationCenter.default.post(name: .codoStartAgentTask, object: task)
+                    })
                     case .workspace: WorkspaceView()
                     case .terminal: TerminalView()
                     case .activity: ActivityView()
