@@ -115,6 +115,7 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - [x] Render a native SwiftUI Canvas dependency graph with arrow direction, connected-file prioritization and bounded node/edge counts.
 - [x] Keep ambiguous and external imports out of the local source graph instead of inventing links.
 - [x] Persist per-step attempt counts, sanitized output excerpts, result summaries and error messages.
+- [x] Keep the initial Goose stage in an explicit awaiting-approval state until the user approves the run.
 - [x] Track explicit cancelled workflow/step states and cancel downstream pending stages when a workflow is stopped or superseded.
 - [x] Connect Goose architect, planner, implementer and reviewer completions to orchestrator state transitions and saved output.
 - [x] Connect build success, build failure and cancellation events to the matching orchestrator step.
@@ -122,7 +123,7 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - [x] Restore the completed Architect and Planner output excerpts into the Implementer context after a build-fix retry or app relaunch.
 - [x] Redact credential-like values before Goose build-log handoff and before saving step output excerpts.
 - [x] Expand automated coverage for dependency graph direction, project scanning, build-log fingerprinting/redaction, workflow persistence/recovery, retry counts and cancellation.
-- [x] Verify the latest refinement head with the full Debug and Release CI run: run 41729344816 passed all 8 test groups and both Debug/Release Xcode builds.
+- [ ] Verify the latest refinement head with the full Debug and Release CI run.
 - [ ] Validate the rendered graph and live Goose workflow on the user's physical Mac.
 
 ### Scope and limits
