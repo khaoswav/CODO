@@ -2,7 +2,8 @@ import SwiftUI
 
 enum WorkspaceTab: String, CaseIterable, Identifiable {
     case overview = "Overview"
-    case files = "Files"\n    case workspace = "AI Workspace"
+    case files = "Files"
+    case workspace = "AI Workspace"
     case terminal = "Terminal"
     case activity = "Activity"
 
@@ -10,7 +11,8 @@ enum WorkspaceTab: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .overview: "square.grid.2x2"
-        case .files: "folder"\n        case .workspace: "sparkles"
+        case .files: "folder"
+        case .workspace: "sparkles"
         case .terminal: "terminal"
         case .activity: "clock.arrow.circlepath"
         }
@@ -31,7 +33,8 @@ struct CODOView: View {
                 Group {
                     switch tab {
                     case .overview: DashboardView(selectedTab: $tab)
-                    case .files: ProjectBrowserView()\n                    case .workspace: WorkspaceView()
+                    case .files: ProjectBrowserView()
+                    case .workspace: WorkspaceView()
                     case .terminal: TerminalPlaceholderView()
                     case .activity: ActivityPlaceholderView()
                     }
