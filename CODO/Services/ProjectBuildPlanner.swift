@@ -37,7 +37,10 @@ enum ProjectBuildPlanner {
             let configuration = command == .xcodeDebugBuild ? "Debug" : "Release"
             var args = [flag, root.appendingPathComponent(container).path, "-scheme", scheme,
                         "-configuration", configuration, "CODE_SIGNING_ALLOWED=NO", "build"]
-            if project.kind == .iOS {
+            if project.kind == .macOS {
+                args.insert(contentsOf: ["-sdk", "macosx", "-destination", "platform=macOS,arch=arm64"],
+                            at: args.count - 2)
+            } else if project.kind == .iOS {
                 args.insert(contentsOf: ["-destination", "generic/platform=iOS Simulator"], at: args.count - 1)
             }
             return PlannedCommand(
