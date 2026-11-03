@@ -125,7 +125,7 @@ struct WorkspaceView: View {
                     if userCancelledAgent {
                         orchestrator.cancelCurrentStep("Goose was stopped by the user.", output: agent.output)
                     } else if code != 0 {
-                        orchestrator.failCurrentStep("Goose exited with status \\(code).", output: agent.output)
+                        orchestrator.failCurrentStep("Goose exited with status \(code).", output: agent.output)
                     }
                     userCancelledAgent = false
                     return
