@@ -45,12 +45,23 @@ Apple-native SwiftUI, system light/dark appearance, semantic AppKit colors, nati
 - [x] Provider/model preferences persisted locally and API key stored in macOS Keychain
 - [x] AI Workspace task submission with explicit per-run approval
 - [x] AI agent output and completion recorded in persistent Activity history
-- [ ] Parse Goose unified diff proposals into structured reviewable file changes
-- [ ] Apply approved AI patches through ProjectFileChangeService with backup and stale-file checks
-- [ ] Add build/test failure feedback loop and bounded agent retry workflow
+- [x] Parse multi-file Goose unified diffs with project-relative path and hunk-context validation
+- [x] Review original and proposed file contents line-by-line, with per-file reject/apply actions
+- [x] Apply approved AI patches through ProjectFileChangeService with backup and stale-file checks
+- [x] Run project build/test commands from the review flow after a separate explicit approval
+- [x] Return failed build/test logs to Goose for a proposed fix, with a two-attempt review loop
 
 ## Security boundaries
 Current command execution uses fixed, typed command cases and Foundation Process with explicit executable paths and argument arrays. No arbitrary shell string is accepted. Build/test commands require a per-run user approval. File writes are limited to supported text files inside the imported project root, are reviewed before apply, are backed up under Application Support/CODO/Backups, and are rejected if the original file changed after review. Destructive commands, OS-level changes, and autonomous broad file access are not enabled.
+
+## AI Patch Review + Build/Fix validation
+- Goose unified diff parser accepts modifications to existing supported text files only. It rejects new/deleted/renamed files, unsafe paths, unsupported extensions, oversized patches, and context mismatches.
+- Hunk application honors each unified diff source line offset and verifies context against the current file before preparing a change.
+- Review UI shows original and proposed content with line numbers; each file has independent Reject and Approve & Apply actions.
+- Approved writes use the existing project-root checks, stale-file detection, and automatic backup.
+- After all accepted changes are applied, Debug/Release or web/Unity build/test actions can be selected. Each action has a separate confirmation and is executed through the typed command queue.
+- Failed build/test output can be sent back to Goose for a proposed patch. The UI limits this feedback cycle to two fix attempts; every new patch still requires per-file review and approval.
+- The build feedback loop is user-controlled, not an unattended agent loop.
 
 ## Goose Integration validation
 - Goose CLI adapter, provider settings UI, Keychain storage, approval prompt, live output, cancellation and Activity history are implemented.
@@ -60,9 +71,10 @@ Current command execution uses fixed, typed command cases and Foundation Process
 ## Validation
 - Task Engine milestone CI: Debug and Release succeeded on commit b5c29334f5884adf3365529c7a11e1b95f565f75.
 - An earlier Command Approval + Build Engine CI attempt exposed a Swift optional-chaining parse error in Xcode scheme discovery; the source was corrected in commit 3f8d93d.
-- Follow-up improvements add npm/yarn/pnpm detection and broader Unity Hub editor discovery. The latest CI attempt for the Goose integration initially failed because a new PBX file reference reused an existing Xcode project object ID. The collision was corrected with unique IDs in commit 12f4d5d; fresh Debug and Release CI is required.
+- Goose integration CI exposed that GooseConfiguration needed Codable conformance for preference persistence; fixed in commit 8e91be7.
+- Follow-up improvements add npm/yarn/pnpm detection and broader Unity Hub editor discovery. The latest CI attempt for the Goose integration initially failed because a new PBX file reference reused an existing Xcode project object ID. The collision was corrected with unique IDs in commit 12f4d5d; later Goose and patch-review changes still require fresh Debug and Release CI.
 - Build adapters are implemented but have not yet been run against real Xcode, Unity or web projects on the user's Mac.
 - Physical Mac launch and visual validation have not been performed.
 
 ## Next
-Inspect the latest CI logs and fix any compiler errors. Add automated tests and harden build result reporting. Then connect Goose to propose code edits and tasks, while keeping the existing review/approval boundary before any project file is changed or build command is run.
+Verify the latest Debug and Release CI, fix any compiler errors from actual logs, add automated tests for unified diff parsing and file-change safety, then validate the complete workflow on a physical Mac with Goose CLI installed.
