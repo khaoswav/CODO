@@ -125,7 +125,7 @@ struct DeveloperIntelligenceTests {
         try expect(!safeLog.contains("super-secret-123") && !safeLog.contains("hidden-token-value"),
                    "Credential-like values must be redacted before Goose log handoff")
 
-        let ansiAndWindowsLog = "\u{001B}[31mAssets/Player.cs(8,4): error CS0246: Missing Unity type\u{001B}[0m\\r\\nMSBuild error MSB3027: Retry limit exceeded\\r\\n"
+        let ansiAndWindowsLog = "\u{001B}[31mAssets/Player.cs(8,4): error CS0246: Missing Unity type\u{001B}[0m\r\nMSBuild error MSB3027: Retry limit exceeded\\r\\n"
         let mixedDiagnostics = BuildFailureAnalyzer.extractDiagnostics(from: ansiAndWindowsLog)
         try expect(mixedDiagnostics.count == 2,
                    "ANSI-colored Unity and MSBuild errors with CRLF endings must both be extracted")
