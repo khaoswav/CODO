@@ -151,3 +151,12 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - [x] Verify the end-to-end harness in GitHub Actions for both Debug and Release (runs 41733102435 and timeout-hardened run 41733542952 passed both configurations).
 - [ ] Run the adapters against the user's actual Xcode, Unity and web projects on the physical Mac. The Unity CI fixture validates invocation only; it does not replace a licensed Unity Editor build.
 - [x] Add subprocess timeouts to the E2E harness and verify the timeout-hardened implementation in Debug and Release CI (run 41733542952).
+
+
+## Build log diagnostics hardening (PR #5)
+- [x] Strip ANSI terminal color sequences before build diagnostic extraction and Goose log handoff.
+- [x] Recognize Unity C# compiler errors and MSBuild error codes without misclassifying MSBuild warnings.
+- [x] Enforce zero and positive diagnostic result limits deterministically.
+- [x] Add regression fixtures for ANSI-colored output, CRLF logs, Unity CS0246, MSBuild errors/warnings, redaction and result limits.
+- [ ] Verify the expanded diagnostics regression suite in GitHub Actions Debug and Release.
+- [ ] Validate diagnostic behavior against real local Xcode, Unity and web build logs on the user's Mac.
