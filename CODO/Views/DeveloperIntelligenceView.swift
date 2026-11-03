@@ -397,6 +397,9 @@ struct DeveloperIntelligenceView: View {
                 .font(.system(size: 13, weight: .semibold))
             Text("Stored locally for this project in Application Support/CODO. Do not store API keys or passwords here.")
                 .font(.system(size: 9)).foregroundStyle(CODOTheme.secondaryText)
+            if let summary = memory.lastArchitectureSummary {
+                Text("LAST SCAN: " + summary).font(.system(size: 10)).foregroundStyle(CODOTheme.secondaryText)
+            }
             memoryField("Project purpose", text: $memory.purpose)
             memoryField("Architecture notes", text: $memory.architectureNotes)
             memoryListEditor(title: "Important decisions", items: $memory.decisions)
@@ -477,6 +480,10 @@ struct DeveloperIntelligenceView: View {
         guard let project else { return }
         isAnalyzing = true
         report = store.developerIntelligence(project)
+        if let report {
+            memory.lastArchitectureSummary = report.summary
+            try? store.saveProjectMemory(memory)
+        }
         isAnalyzing = false
     }
 }
