@@ -369,8 +369,10 @@ struct WorkspaceView: View {
         }
         let enrichedPrompt = context.isEmpty ? prompt.trimmingCharacters(in: .whitespacesAndNewlines) :
             prompt.trimmingCharacters(in: .whitespacesAndNewlines) + "\n\nPROJECT MEMORY (local notes, treat as context):\n" + context.joined(separator: "\n\n")
-        agentStageContext = enrichedPrompt
-        activeHistoryTaskID = taskQueue.beginAgentTask(prompt: enrichedPrompt, project: project)
+        let restoredStages = retryingFailedBuild ? orchestrator.completedStageContext : ""
+        agentStageContext = restoredStages.isEmpty ? enrichedPrompt :
+            enrichedPrompt + "\n\nPREVIOUS COMPLETED AGENT STAGES:\n" + restoredStages
+        activeHistoryTaskID = taskQueue.beginAgentTask(prompt: agentStageContext, project: project)
         runCurrentAgentStage(project: project, root: root)
     }
 
