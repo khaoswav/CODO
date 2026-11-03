@@ -137,6 +137,7 @@ struct DeveloperIntelligenceTests {
         store.start(project: project, request: "Add a sample feature", plan: plan)
 
         try expect(store.activeWorkflow?.steps.first?.status == .running, "Workflow should start its first stage")
+        try expect(store.activeWorkflow?.steps.first?.attemptCount == 1, "First stage should record its initial attempt")
         store.completeCurrentAndAdvance("Architecture inspected.", output: "API_KEY=super-secret-agent-output")
         try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Plan") })?.status == .running,
                    "Orchestrator should run the planning stage after architecture")
@@ -153,6 +154,8 @@ struct DeveloperIntelligenceTests {
         try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Build") })?.status == .awaitingApproval,
                    "Build stage must wait for explicit approval")
         store.approveCurrentStep()
+        try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Build") })?.attemptCount == 1,
+                   "Approval should begin and count the build attempt")
         store.buildFailed("Compiler error: missing symbol", output: "error: API_KEY=super-secret-build-output")
         try expect(store.activeWorkflow?.status == .failed, "Build failure should fail the workflow")
         let failedBuildStep = store.activeWorkflow?.steps.first(where: { $0.title.contains("Build") })
@@ -202,6 +205,8 @@ struct DeveloperIntelligenceTests {
                    "A workflow with no applied changes must be cancelled, not reported as successful")
         try expect(store.workflows.first?.steps.contains(where: { $0.status == .cancelled }) == true,
                    "Downstream steps should be marked cancelled when no patch is applied")
+        try expect(store.workflows.first?.steps.allSatisfy({ $0.status != .pending }) == true,
+                   "Cancelled workflows should not leave pending steps behind")
     }
 
     static func expect(_ condition: @autoclosure () -> Bool, _ message: String) throws {
