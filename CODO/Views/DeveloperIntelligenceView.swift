@@ -1,6 +1,13 @@
 import SwiftUI
 
 struct DeveloperIntelligenceView: View {
+    private enum GitAction: String, Identifiable {
+        case createBranch = "Create branch"
+        case commit = "Commit staged changes"
+        case push = "Push branch"
+        case pullRequest = "Create pull request"
+        var id: String { rawValue }
+    }
     @EnvironmentObject private var store: ProjectStore
     @State private var report: DeveloperIntelligenceReport?
     @State private var memory = ProjectMemory(projectID: UUID(), projectName: "")
@@ -9,6 +16,10 @@ struct DeveloperIntelligenceView: View {
     @State private var isAnalyzing = false
     @State private var saveMessage: String?
     @State private var showSaveAlert = false
+    @StateObject private var git = GitWorkflowService()
+    @State private var branchName = "feature/"
+    @State private var commitMessage = ""
+    @State private var pendingGitAction: GitAction?
 
     private var project: CODOProject? { store.selectedProject }
     private var languageRows: [(String, Int)] {
@@ -41,6 +52,7 @@ struct DeveloperIntelligenceView: View {
                             .frame(maxWidth: .infinity, minHeight: 180)
                         }
                         taskPlannerPanel
+                        gitWorkflowPanel
                         projectMemoryPanel
                     }
                     .padding(22)
@@ -55,6 +67,33 @@ struct DeveloperIntelligenceView: View {
         .background(CODOTheme.background)
         .onAppear(perform: loadProject)
         .onChange(of: store.selectedProjectID) { _, _ in loadProject() }
+        .confirmationDialog(
+            "Approve Git operation?",
+            isPresented: Binding(
+                get: { pendingGitAction != nil },
+                set: { if !$0 { pendingGitAction = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Approve and run", role: .destructive) {
+                guard let action = pendingGitAction, let project,
+                      let root = store.projectRootURL(for: project) else { return }
+                switch action {
+                case .createBranch:
+                    git.createBranch(branchName, project: project, root: root, approvalGranted: true)
+                case .commit:
+                    git.commitStagedChanges(commitMessage, project: project, root: root, approvalGranted: true)
+                case .push:
+                    git.push(project: project, root: root, approvalGranted: true)
+                case .pullRequest:
+                    git.createPullRequest(project: project, root: root, approvalGranted: true)
+                }
+                pendingGitAction = nil
+            }
+            Button("Cancel", role: .cancel) { pendingGitAction = nil }
+        } message: {
+            Text("This operation changes Git history or publishes code to the remote repository. Review the action before approving.")
+        }
         .alert("Project memory", isPresented: $showSaveAlert) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -274,6 +313,68 @@ struct DeveloperIntelligenceView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(CODOTheme.border, lineWidth: 1))
     }
 
+    private var gitWorkflowPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("Git workflow", systemImage: "arrow.triangle.branch")
+                    .font(.system(size: 13, weight: .semibold))
+                Spacer()
+                Button("Refresh") {
+                    if let project, let root = store.projectRootURL(for: project) {
+                        git.refresh(project: project, root: root)
+                    }
+                }
+                .buttonStyle(.borderless)
+                .disabled(git.isRunning)
+            }
+            HStack {
+                Text("CURRENT BRANCH").font(.system(size: 9, weight: .bold)).tracking(0.7)
+                    .foregroundStyle(CODOTheme.mutedText)
+                Spacer()
+                Text(git.snapshot.branch).font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .textSelection(.enabled)
+            }
+            Text(git.statusMessage).font(.system(size: 10)).foregroundStyle(CODOTheme.secondaryText)
+            TextField("New branch name", text: $branchName).textFieldStyle(.roundedBorder)
+            HStack {
+                Button("Create branch") { pendingGitAction = .createBranch }.buttonStyle(.bordered)
+                Spacer()
+                Button("Push") { pendingGitAction = .push }.buttonStyle(.bordered)
+                Button("Create PR") { pendingGitAction = .pullRequest }.buttonStyle(.borderedProminent)
+            }
+            TextField("Commit message for staged files", text: $commitMessage)
+                .textFieldStyle(.roundedBorder)
+            HStack {
+                Text("Commit includes staged changes only. CODO will not stage every project file automatically.")
+                    .font(.system(size: 9)).foregroundStyle(CODOTheme.secondaryText)
+                Spacer()
+                Button("Commit staged") { pendingGitAction = .commit }
+                    .buttonStyle(.bordered)
+                    .disabled(commitMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            if !git.snapshot.status.isEmpty {
+                Text(git.snapshot.status)
+                    .font(.system(size: 10, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                    .background(CODOTheme.elevated, in: RoundedRectangle(cornerRadius: 8))
+            }
+            if !git.output.isEmpty {
+                Text(String(git.output.suffix(4_000)))
+                    .font(.system(size: 9, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                    .background(CODOTheme.elevated, in: RoundedRectangle(cornerRadius: 8))
+            }
+            if git.isRunning { ProgressView().controlSize(.small) }
+        }
+        .padding(18)
+        .background(CODOTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(CODOTheme.border, lineWidth: 1))
+    }
+
     private var projectMemoryPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Project memory", systemImage: "brain")
@@ -350,6 +451,9 @@ struct DeveloperIntelligenceView: View {
         }
         memory = store.projectMemory(project)
         report = nil
+        if let root = store.projectRootURL(for: project) {
+            git.refresh(project: project, root: root)
+        }
         analyze()
     }
 
