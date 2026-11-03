@@ -327,17 +327,29 @@ enum BuildFailureAnalyzer {
                 lower.range(of: #"\berror\s+cs[0-9]+\b"#, options: .regularExpression) != nil ||
                 lower.range(of: #"\bmsb[0-9]+\b"#, options: .regularExpression) != nil
             guard isDiagnostic else { continue }
-            var normalized = trimmed
+            var normalized = redactSecrets(in: trimmed)
             normalized = normalized.replacingOccurrences(of: #":\d+:\d+:"#,
                 with: ":<line>:<column>:", options: .regularExpression)
             normalized = normalized.replacingOccurrences(of: #"0x[0-9a-fA-F]+"#,
                 with: "<address>", options: .regularExpression)
             let signature = normalized.lowercased()
             guard seen.insert(signature).inserted else { continue }
-            results.append(BuildDiagnostic(signature: signature, message: String(trimmed.prefix(500))))
+            results.append(BuildDiagnostic(signature: signature, message: String(normalized.prefix(500))))
             if results.count >= limit { break }
         }
         return results
+    }
+
+    private static func redactSecrets(in line: String) -> String {
+        var value = line
+        let patterns = [
+            #"(?i)(api[_-]?key|secret|access[_-]?token|password)\s*[:=]\s*["']?[^ "';,]+"#,
+            #"(?i)bearer\s+[A-Za-z0-9._~+/-]+"#
+        ]
+        for pattern in patterns {
+            value = value.replacingOccurrences(of: pattern, with: "<redacted>", options: .regularExpression)
+        }
+        return value
     }
 
     static func merge(_ diagnostics: [BuildDiagnostic], into existing: [BuildFailurePattern], now: Date = .now) -> [BuildFailurePattern] {
