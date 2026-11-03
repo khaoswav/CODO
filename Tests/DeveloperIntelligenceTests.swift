@@ -109,7 +109,10 @@ struct DeveloperIntelligenceTests {
         store.start(project: project, request: "Add a sample feature", plan: plan)
 
         try expect(store.activeWorkflow?.steps.first?.status == .running, "Workflow should start its first stage")
-        store.prepareAgentRunForImplementation()
+        store.completeCurrentAndAdvance("Architecture inspected.")
+        try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Plan") })?.status == .running,
+                   "Orchestrator should run the planning stage after architecture")
+        store.completeCurrentAndAdvance("Implementation plan prepared.")
         try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Implement") })?.status == .running,
                    "Orchestrator should enter implementation before Goose runs")
         store.proposalReady()
