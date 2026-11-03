@@ -61,7 +61,7 @@ final class ProjectProcessRunner: ObservableObject {
 
     private var process: Process?
     private var outputPipe: Pipe?
-    private var scopedRoot: URL?
+    private var scopedRoot: URL?\n    var onOutput: ((String) -> Void)?\n    var onCompletion: ((Int32) -> Void)?
 
     func run(_ command: ProjectCommand, for project: CODOProject, root: URL) {
         guard !isRunning else { return }
@@ -101,7 +101,7 @@ final class ProjectProcessRunner: ObservableObject {
             }
             let text = String(decoding: data, as: UTF8.self)
             DispatchQueue.main.async {
-                self?.output.append(text)
+                self?.output.append(text)\n                self?.onOutput?(text)
             }
         }
 
@@ -122,7 +122,7 @@ final class ProjectProcessRunner: ObservableObject {
             scopedRoot?.stopAccessingSecurityScopedResource()
             scopedRoot = nil
             output.append("Failed to start process: \(error.localizedDescription)\n")
-            status = "Failed to start"
+            status = "Failed to start"\n            onOutput?("Failed to start process: \\(error.localizedDescription)\\n")\n            onCompletion?(-1)
         }
     }
 
