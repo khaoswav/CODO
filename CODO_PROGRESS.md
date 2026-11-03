@@ -158,5 +158,7 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - [x] Recognize Unity C# compiler errors and MSBuild error codes without misclassifying MSBuild warnings.
 - [x] Enforce zero and positive diagnostic result limits deterministically.
 - [x] Add regression fixtures for ANSI-colored output, CRLF logs, Unity CS0246, MSBuild errors/warnings, redaction and result limits.
-- [ ] Verify the expanded diagnostics regression suite in GitHub Actions Debug and Release.
+- [x] Fingerprint recurring compiler failures by error code and diagnostic payload rather than source path/line, while preserving symbol names to avoid merging distinct missing-type errors.
+- [x] Add cross-file recurrence tests for Swift and Unity diagnostics.
+- [ ] Verify the expanded diagnostics and cross-file recurrence regression suite in GitHub Actions Debug and Release.
 - [ ] Validate diagnostic behavior against real local Xcode, Unity and web build logs on the user's Mac.
