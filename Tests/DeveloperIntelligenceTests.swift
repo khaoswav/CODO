@@ -136,7 +136,11 @@ struct DeveloperIntelligenceTests {
         let plan = IntelligenceTaskPlanner.makePlan(for: "Add a sample feature")
         store.start(project: project, request: "Add a sample feature", plan: plan)
 
-        try expect(store.activeWorkflow?.steps.first?.status == .running, "Workflow should start its first stage")
+        try expect(store.activeWorkflow?.status == .awaitingApproval &&
+                   store.activeWorkflow?.steps.first?.status == .awaitingApproval,
+                   "A new workflow must wait for the user's initial Goose approval")
+        store.approveCurrentStep()
+        try expect(store.activeWorkflow?.steps.first?.status == .running, "Workflow should run after explicit approval")
         try expect(store.activeWorkflow?.steps.first?.attemptCount == 1, "First stage should record its initial attempt")
         store.completeCurrentAndAdvance("Architecture inspected.", output: "ARCHITECTURE_CONTEXT API_KEY=super-secret-agent-output")
         try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Plan") })?.status == .running,
@@ -193,6 +197,7 @@ struct DeveloperIntelligenceTests {
         let store = AgentOrchestratorStore(storageURL: directory.appendingPathComponent("workflow.json"))
         store.start(project: project, request: "Add a sample feature",
                     plan: IntelligenceTaskPlanner.makePlan(for: "Add a sample feature"))
+        store.approveCurrentStep()
         store.completeCurrentAndAdvance("Architecture inspected.")
         store.completeCurrentAndAdvance("Plan prepared.")
         store.completeCurrentAndAdvance("Diff proposed.")
