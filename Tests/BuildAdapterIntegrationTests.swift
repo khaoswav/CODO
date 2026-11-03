@@ -1,4 +1,5 @@
 import Foundation
+import Dispatch
 
 @main
 struct BuildAdapterIntegrationTests {
@@ -142,13 +143,14 @@ struct BuildAdapterIntegrationTests {
         }
         try expect(planned.arguments.contains(configuration),
                    "Xcode planner must preserve the requested CI configuration")
-        try execute(planned, workingDirectory: root)
+        try execute(planned, workingDirectory: root, timeout: 480)
         print("PASS: real CODO.xcodeproj built through ProjectBuildPlanner (" + configuration + ")")
     }
 
     @discardableResult
     static func execute(_ command: PlannedCommand, workingDirectory: URL,
-                        environment additions: [String: String] = [:]) throws -> String {
+                        environment additions: [String: String] = [:],
+                        timeout: TimeInterval = 120) throws -> String {
         let process = Process()
         let logURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("CODO-Command-\(UUID().uuidString).log")
@@ -165,8 +167,20 @@ struct BuildAdapterIntegrationTests {
         var environment = ProcessInfo.processInfo.environment
         additions.forEach { environment[$0.key] = $0.value }
         process.environment = environment
+        let finished = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in finished.signal() }
         try process.run()
-        process.waitUntilExit()
+        if finished.wait(timeout: .now() + timeout) == .timedOut {
+            process.terminate()
+            if finished.wait(timeout: .now() + 10) == .timedOut {
+                process.interrupt()
+            }
+            try? logHandle.close()
+            let output = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+            throw HarnessFailure.assertion(
+                "Command timed out after \(Int(timeout)) seconds: \(command.display)\\n\(lastLines(output, count: 35))"
+            )
+        }
         try? logHandle.close()
         let output = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
         guard process.terminationStatus == 0 else {
