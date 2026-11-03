@@ -15,6 +15,8 @@ struct WorkspaceView: View {
     @State private var proposedChanges: [ProjectFileChange] = []
     @State private var showPatchReview = false
     @State private var patchError: String?
+    @State private var fixAttempts = 0
+    @State private var isFixRequest = false
 
     private var project: CODOProject? { store.selectedProject }
 
@@ -35,7 +37,28 @@ struct WorkspaceView: View {
         .sheet(isPresented: $showSettings) { settingsSheet }
         .sheet(isPresented: $showPatchReview) {
             if let project, let root = store.projectRootURL(for: project) {
-                AIChangeReviewView(project: project, root: root, changes: proposedChanges)
+                AIChangeReviewView(
+                    project: project,
+                    root: root,
+                    onBuildFailure: { log in
+                        guard fixAttempts < 2 else {
+                            patchError = "The automatic fix limit (2 attempts) has been reached. Review the build log and start a new task if needed."
+                            return
+                        }
+                        fixAttempts += 1
+                        isFixRequest = true
+                        prompt = """
+                        The previously approved changes failed during build or test.
+                        Analyze this failure log and propose the smallest safe unified diff.
+                        Do not edit files or run commands. Return only reviewable proposals.
+
+                        BUILD / TEST LOG:
+                        \(String(log.suffix(24_000)))
+                        """
+                        showRunApproval = true
+                    },
+                    changes: proposedChanges
+                )
             }
         }
         .alert("Patch review", isPresented: Binding(
@@ -226,6 +249,8 @@ struct WorkspaceView: View {
         guard let project, let root = store.projectRootURL(for: project) else { return }
         agent.configuration = GooseConfiguration(provider: provider, model: model)
         proposedChanges = []
+        if !isFixRequest { fixAttempts = 0 }
+        isFixRequest = false
         activeHistoryTaskID = taskQueue.beginAgentTask(prompt: prompt, project: project)
         agent.runAnalysis(
             prompt: prompt.trimmingCharacters(in: .whitespacesAndNewlines),
