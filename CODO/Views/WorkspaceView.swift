@@ -12,6 +12,9 @@ struct WorkspaceView: View {
     @State private var showRunApproval = false
     @State private var showKeySaved = false
     @State private var activeHistoryTaskID: UUID?
+    @State private var proposedChanges: [ProjectFileChange] = []
+    @State private var showPatchReview = false
+    @State private var patchError: String?
 
     private var project: CODOProject? { store.selectedProject }
 
@@ -30,6 +33,19 @@ struct WorkspaceView: View {
         }
         .background(CODOTheme.background)
         .sheet(isPresented: $showSettings) { settingsSheet }
+        .sheet(isPresented: $showPatchReview) {
+            if let project, let root = store.projectRootURL(for: project) {
+                AIChangeReviewView(project: project, root: root, changes: proposedChanges)
+            }
+        }
+        .alert("Patch review", isPresented: Binding(
+            get: { patchError != nil },
+            set: { if !$0 { patchError = nil } }
+        )) {
+            Button("OK", role: .cancel) { patchError = nil }
+        } message: {
+            Text(patchError ?? "")
+        }
         .alert("Allow Goose to analyze this project?", isPresented: $showRunApproval) {
             Button("Cancel", role: .cancel) { }
             Button("Approve analysis") { startAnalysis() }
@@ -49,6 +65,16 @@ struct WorkspaceView: View {
             agent.onCompletion = { code in
                 if let id = activeHistoryTaskID { taskQueue.finishAgentTask(taskID: id, exitCode: code) }
                 activeHistoryTaskID = nil
+                guard code == 0, let project, let root = store.projectRootURL(for: project) else { return }
+                do {
+                    let parsed = try AIUnifiedDiffParser.parse(agent.output, project: project, root: root)
+                    proposedChanges = parsed
+                    showPatchReview = true
+                } catch AIUnifiedDiffError.noChanges {
+                    patchError = "Goose did not return any supported file changes. Review its analysis output for details."
+                } catch {
+                    patchError = error.localizedDescription
+                }
             }
         }
     }
@@ -97,6 +123,13 @@ struct WorkspaceView: View {
                 Label("LIVE AGENT OUTPUT", systemImage: "terminal")
                     .font(.system(size: 10, weight: .bold)).tracking(1).foregroundStyle(CODOTheme.mutedText)
                 Spacer()
+                if !proposedChanges.isEmpty {
+                    Button {
+                        showPatchReview = true
+                    } label: {
+                        Label("Review \(proposedChanges.count)", systemImage: "arrow.left.arrow.right")
+                    }.buttonStyle(.borderedProminent)
+                }
                 if agent.isRunning {
                     Button("Stop") { agent.stop() }.buttonStyle(.bordered)
                 }
@@ -192,6 +225,7 @@ struct WorkspaceView: View {
     private func startAnalysis() {
         guard let project, let root = store.projectRootURL(for: project) else { return }
         agent.configuration = GooseConfiguration(provider: provider, model: model)
+        proposedChanges = []
         activeHistoryTaskID = taskQueue.beginAgentTask(prompt: prompt, project: project)
         agent.runAnalysis(
             prompt: prompt.trimmingCharacters(in: .whitespacesAndNewlines),
