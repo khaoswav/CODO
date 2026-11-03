@@ -2,13 +2,15 @@ import Foundation
 
 @main
 struct DeveloperIntelligenceTests {
+    @MainActor
     static func main() throws {
         try testSwiftModuleResolution()
         try testRelativeModuleResolution()
         try testExternalAndAmbiguousImportsAreExcluded()
         try testProjectScanBuildsGraphAndFindings()
         try testBuildFailureFingerprinting()
-        print("PASS: 5 Developer Intelligence test groups")
+        try testAgentWorkflowTransitionsAndPersistence()
+        print("PASS: 6 Developer Intelligence and Agent Orchestrator test groups")
     }
 
     static func testSwiftModuleResolution() throws {
@@ -80,6 +82,43 @@ struct DeveloperIntelligenceTests {
         let merged = BuildFailureAnalyzer.merge(diagnostics + diagnostics, into: [])
         try expect(merged.count == 1, "Repeated signatures should merge into one memory pattern")
         try expect(merged[0].occurrenceCount == 2, "Pattern occurrence count should increase")
+    }
+
+    @MainActor
+    static func testAgentWorkflowTransitionsAndPersistence() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CODO-Agent-Test-\\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storage = directory.appendingPathComponent("workflow.json")
+        let project = CODOProject(name: "Fixture", path: directory.path, kind: .macOS)
+        let store = AgentOrchestratorStore(storageURL: storage)
+        let plan = IntelligenceTaskPlanner.makePlan(for: "Add a sample feature")
+        store.start(project: project, request: "Add a sample feature", plan: plan)
+
+        try expect(store.activeWorkflow?.steps.first?.status == .running, "Workflow should start its first stage")
+        store.prepareAgentRunForImplementation()
+        try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Implement") })?.status == .running,
+                   "Orchestrator should enter implementation before Goose runs")
+        store.proposalReady()
+        try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Review") })?.status == .awaitingApproval,
+                   "Patch review must wait for explicit approval")
+        store.reviewCompleted(appliedCount: 1, rejectedCount: 0)
+        try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Build") })?.status == .awaitingApproval,
+                   "Build stage must wait for explicit approval")
+        store.approveCurrentStep()
+        store.buildFailed("Compiler error: missing symbol")
+        try expect(store.activeWorkflow?.status == .failed, "Build failure should fail the workflow")
+        store.resumeForFix()
+        try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Implement") })?.status == .running,
+                   "Fix retry should restart at implementation")
+        store.proposalReady()
+        store.reviewCompleted(appliedCount: 1, rejectedCount: 0)
+        store.approveCurrentStep()
+        store.buildSucceeded()
+        try expect(store.activeWorkflow == nil, "Successful build should close the active workflow")
+        let restored = AgentOrchestratorStore(storageURL: storage)
+        try expect(restored.workflows.first?.status == .succeeded, "Completed workflow should persist across launches")
     }
 
     static func expect(_ condition: @autoclosure () -> Bool, _ message: String) throws {
