@@ -8,7 +8,6 @@ struct CODOApp: App {
         WindowGroup {
             CODOView()
                 .environmentObject(store)
-                .preferredColorScheme(.dark)
                 .frame(minWidth: 980, minHeight: 660)
         }
         .windowStyle(.hiddenTitleBar)
