@@ -4,6 +4,7 @@ enum WorkspaceTab: String, CaseIterable, Identifiable {
     case overview = "Overview"
     case files = "Files"
     case project = "Project"
+    case intelligence = "Intelligence"
     case workspace = "AI Workspace"
     case terminal = "Terminal"
     case activity = "Activity"
@@ -14,6 +15,7 @@ enum WorkspaceTab: String, CaseIterable, Identifiable {
         case .overview: "square.grid.2x2"
         case .files: "folder"
         case .project: "square.stack.3d.up"
+        case .intelligence: "brain"
         case .workspace: "sparkles"
         case .terminal: "terminal"
         case .activity: "clock.arrow.circlepath"
@@ -38,6 +40,7 @@ struct CODOView: View {
                     case .overview: DashboardView(selectedTab: $tab)
                     case .files: ProjectBrowserView()
                     case .project: ProjectOverviewView()
+                    case .intelligence: DeveloperIntelligenceView()
                     case .workspace: WorkspaceView()
                     case .terminal: TerminalView()
                     case .activity: ActivityView()
