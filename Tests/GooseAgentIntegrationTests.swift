@@ -63,7 +63,7 @@ struct GooseAgentIntegrationTests {
         try expect(environment == ["openai", "test-model", "test-provider-key", "test-provider-key"],
                    "Provider, model and provider-specific API key environment variables must be passed to Goose")
         let prompt = try String(contentsOf: promptCapture, encoding: .utf8)
-        try expect(prompt.contains("USER TASK:\\nAdd a safe sample feature"),
+        try expect(prompt.contains("USER TASK:\nAdd a safe sample feature"),
                    "The requested task must be passed as the Goose prompt")
         try expect(prompt.contains("ANALYSIS AND PROPOSAL ONLY") &&
                    prompt.contains("Do not create, edit, delete, rename, or move files"),
