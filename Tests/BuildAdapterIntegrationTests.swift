@@ -3,9 +3,16 @@ import Foundation
 @main
 struct BuildAdapterIntegrationTests {
     static func main() throws {
+        print("RUN: project detection and analysis")
         try testProjectDetectionAndAnalysis()
+        print("PASS: project detection and analysis")
+        print("RUN: Unity command contract")
         try testUnityInvocationContract()
+        print("PASS: Unity command contract")
+        print("RUN: npm build and test")
         try testWebBuildAndTestExecution()
+        print("PASS: npm build and test")
+        print("RUN: CODO Xcode build through planner")
         try testXcodeBuildThroughPlanner()
         print("PASS: Xcode, Unity adapter contract, and web build/test end-to-end checks")
     }
