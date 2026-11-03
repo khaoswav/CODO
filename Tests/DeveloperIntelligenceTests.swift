@@ -6,11 +6,13 @@ struct DeveloperIntelligenceTests {
     static func main() throws {
         try testSwiftModuleResolution()
         try testRelativeModuleResolution()
+        try testGraphLayoutPreservesDependencyDirection()
         try testExternalAndAmbiguousImportsAreExcluded()
         try testProjectScanBuildsGraphAndFindings()
         try testBuildFailureFingerprinting()
         try testAgentWorkflowTransitionsAndPersistence()
-        print("PASS: 6 Developer Intelligence and Agent Orchestrator test groups")
+        try testReviewWithoutAppliedChangesCancelsWorkflow()
+        print("PASS: 8 Developer Intelligence and Agent Orchestrator test groups")
     }
 
     static func testSwiftModuleResolution() throws {
@@ -37,6 +39,27 @@ struct DeveloperIntelligenceTests {
         let edges = DeveloperIntelligenceService.resolveGraph(files: files, dependencies: dependencies)
         try expect(edges.count == 1, "Relative TypeScript import should resolve")
         try expect(edges[0].targetFile == "Web/src/lib/helpers.ts", "Relative import should resolve against source directory")
+    }
+
+    static func testGraphLayoutPreservesDependencyDirection() throws {
+        let files = [
+            IntelligenceFile(path: "Sources/App.swift", language: "Swift", lineCount: 4, byteCount: 80),
+            IntelligenceFile(path: "Sources/AudioEngine.swift", language: "Swift", lineCount: 8, byteCount: 120),
+            IntelligenceFile(path: "Sources/AudioUnit.swift", language: "Swift", lineCount: 3, byteCount: 40)
+        ]
+        let edges = [
+            IntelligenceGraphEdge(sourceFile: "Sources/App.swift", targetFile: "Sources/AudioEngine.swift",
+                                  importedSymbol: "AudioEngine", kind: "import"),
+            IntelligenceGraphEdge(sourceFile: "Sources/AudioEngine.swift", targetFile: "Sources/AudioUnit.swift",
+                                  importedSymbol: "AudioUnit", kind: "import")
+        ]
+        let nodes = IntelligenceGraphLayout.layout(files: files, edges: edges)
+        let byPath = Dictionary(uniqueKeysWithValues: nodes.map { ($0.path, $0) })
+        try expect(nodes.count == 3, "Graph layout should include all connected source files")
+        try expect(byPath["Sources/App.swift"]!.layer < byPath["Sources/AudioEngine.swift"]!.layer,
+                   "Importing files should appear before their local dependencies")
+        try expect(byPath["Sources/AudioEngine.swift"]!.x < byPath["Sources/AudioUnit.swift"]!.x,
+                   "Graph x positions should follow dependency direction")
     }
 
     static func testExternalAndAmbiguousImportsAreExcluded() throws {
@@ -135,7 +158,6 @@ struct DeveloperIntelligenceTests {
 
         // Simulate relaunch: failed workflows are restored as history and can be resumed explicitly.
         let recovered = AgentOrchestratorStore(storageURL: storage)
-        print("RECOVERED WORKFLOWS: " + recovered.workflows.map { "\($0.status.rawValue):" + $0.steps.map { "\($0.title)=\($0.status.rawValue)" }.joined(separator: ",") }.joined(separator: " | "))
         try expect(recovered.activeWorkflow == nil, "A failed workflow should not resume automatically after relaunch")
         recovered.resumeForFix()
         let resumedWorkflow = recovered.activeWorkflow
@@ -150,6 +172,33 @@ struct DeveloperIntelligenceTests {
         try expect(recovered.activeWorkflow == nil, "Successful build should close the active workflow")
         let restored = AgentOrchestratorStore(storageURL: storage)
         try expect(restored.workflows.first?.status == .succeeded, "Completed workflow should persist across launches")
+        try expect(restored.workflows.first?.steps.first?.outputExcerpt?.contains("super-secret") == false,
+                   "Agent step output should redact credentials before local persistence")
+    }
+
+    @MainActor
+    static func testReviewWithoutAppliedChangesCancelsWorkflow() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CODO-Agent-Cancel-Test-\\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let project = CODOProject(name: "Fixture", path: directory.path, kind: .macOS)
+        let store = AgentOrchestratorStore(storageURL: directory.appendingPathComponent("workflow.json"))
+        store.start(project: project, request: "Add a sample feature",
+                    plan: IntelligenceTaskPlanner.makePlan(for: "Add a sample feature"))
+        store.completeCurrentAndAdvance("Architecture inspected.")
+        store.completeCurrentAndAdvance("Plan prepared.")
+        store.completeCurrentAndAdvance("Diff proposed.")
+        store.proposalReady()
+        store.completeCurrentAndAdvance("Reviewer approved the proposal.")
+        try expect(store.activeWorkflow?.steps.first(where: { $0.title == "Review and approve" })?.status == .awaitingApproval,
+                   "Patch review must be approval-gated")
+        store.reviewCompleted(appliedCount: 0, rejectedCount: 1)
+        try expect(store.activeWorkflow == nil, "A fully rejected patch should close the workflow")
+        try expect(store.workflows.first?.status == .cancelled,
+                   "A workflow with no applied changes must be cancelled, not reported as successful")
+        try expect(store.workflows.first?.steps.contains(where: { $0.status == .cancelled }) == true,
+                   "Downstream steps should be marked cancelled when no patch is applied")
     }
 
     static func expect(_ condition: @autoclosure () -> Bool, _ message: String) throws {
