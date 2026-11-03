@@ -85,7 +85,8 @@ final class TaskQueueStore: ObservableObject {
     var queuedCount: Int { tasks.filter { $0.status == .queued }.count }
     var runningCount: Int { tasks.filter { $0.status == .running }.count }
 
-    func enqueue(_ command: ProjectCommand, project: CODOProject, root: URL) {
+    func enqueue(_ command: ProjectCommand, project: CODOProject, root: URL, approvalGranted: Bool = false) {
+        guard !command.requiresApproval || approvalGranted else { return }
         let task = CODOExecutionTask(
             projectID: project.id,
             projectName: project.name,
