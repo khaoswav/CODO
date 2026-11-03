@@ -299,6 +299,71 @@ enum DeveloperIntelligenceService {
     }
 }
 
+struct BuildDiagnostic: Identifiable, Codable, Hashable {
+    let signature: String
+    let message: String
+    var id: String { signature }
+}
+
+struct BuildFailurePattern: Identifiable, Codable {
+    let signature: String
+    var summary: String
+    var occurrenceCount: Int
+    var lastSeen: Date
+    var recentExamples: [String]
+    var id: String { signature }
+}
+
+enum BuildFailureAnalyzer {
+    static func extractDiagnostics(from log: String, limit: Int = 8) -> [BuildDiagnostic] {
+        let lines = log.components(separatedBy: .newlines)
+        var results: [BuildDiagnostic] = []
+        var seen = Set<String>()
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            let lower = trimmed.lowercased()
+            let isDiagnostic = lower.contains("error:") || lower.contains("fatal error:") ||
+                lower.range(of: #"\\berror\\s+cs[0-9]+\\b"#, options: .regularExpression) != nil ||
+                lower.range(of: #"\\bmsb[0-9]+\\b"#, options: .regularExpression) != nil
+            guard isDiagnostic else { continue }
+            var normalized = trimmed
+            normalized = normalized.replacingOccurrences(of: #":\\d+:\\d+:"#,
+                with: ":<line>:<column>:", options: .regularExpression)
+            normalized = normalized.replacingOccurrences(of: #"0x[0-9a-fA-F]+"#,
+                with: "<address>", options: .regularExpression)
+            let signature = normalized.lowercased()
+            guard seen.insert(signature).inserted else { continue }
+            results.append(BuildDiagnostic(signature: signature, message: String(trimmed.prefix(500))))
+            if results.count >= limit { break }
+        }
+        return results
+    }
+
+    static func merge(_ diagnostics: [BuildDiagnostic], into existing: [BuildFailurePattern], now: Date = .now) -> [BuildFailurePattern] {
+        var patterns = existing
+        for diagnostic in diagnostics {
+            if let index = patterns.firstIndex(where: { $0.signature == diagnostic.signature }) {
+                patterns[index].occurrenceCount += 1
+                patterns[index].lastSeen = now
+                patterns[index].recentExamples.insert(diagnostic.message, at: 0)
+                patterns[index].recentExamples = Array(patterns[index].recentExamples.prefix(3))
+            } else {
+                patterns.append(BuildFailurePattern(
+                    signature: diagnostic.signature,
+                    summary: diagnostic.message,
+                    occurrenceCount: 1,
+                    lastSeen: now,
+                    recentExamples: [diagnostic.message]
+                ))
+            }
+        }
+        return patterns.sorted {
+            if $0.occurrenceCount != $1.occurrenceCount { return $0.occurrenceCount > $1.occurrenceCount }
+            return $0.lastSeen > $1.lastSeen
+        }
+    }
+}
+
 struct ProjectMemory: Codable {
     var projectID: UUID
     var projectName: String
@@ -307,6 +372,7 @@ struct ProjectMemory: Codable {
     var architectureNotes: String = ""
     var decisions: [String] = []
     var nextSteps: [String] = []
+    var buildFailurePatterns: [BuildFailurePattern]? = []
     var updatedAt: Date = .now
 }
 
