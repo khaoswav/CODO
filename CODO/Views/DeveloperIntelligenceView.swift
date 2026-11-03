@@ -297,8 +297,16 @@ struct DeveloperIntelligenceView: View {
                             Text(pattern.lastSeen.formatted(date: .abbreviated, time: .shortened))
                                 .font(.system(size: 9)).foregroundStyle(CODOTheme.mutedText)
                         }
+                        if let category = pattern.category {
+                            Text(category.uppercased()).font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(CODOTheme.accent)
+                        }
                         Text(pattern.summary).font(.system(size: 10, design: .monospaced))
                             .textSelection(.enabled)
+                        if let suggestion = pattern.suggestedAction {
+                            Text("Next check: " + suggestion).font(.system(size: 9))
+                                .foregroundStyle(CODOTheme.secondaryText)
+                        }
                         if let example = pattern.recentExamples.first, example != pattern.summary {
                             Text("Latest: " + example).font(.system(size: 9))
                                 .foregroundStyle(CODOTheme.secondaryText)
