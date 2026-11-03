@@ -85,6 +85,11 @@ final class AgentOrchestratorStore: ObservableObject {
                 workflows[previous].steps[running].finishedAt = .now
                 workflows[previous].steps[running].resultSummary = "Superseded by a newer workflow."
             }
+            for index in workflows[previous].steps.indices where workflows[previous].steps[index].status == .pending {
+                workflows[previous].steps[index].status = .cancelled
+                workflows[previous].steps[index].finishedAt = .now
+                workflows[previous].steps[index].resultSummary = "Cancelled because a newer workflow replaced this one."
+            }
             touchAndPersist(previous)
         }
         let steps = plan.map {
@@ -150,6 +155,12 @@ final class AgentOrchestratorStore: ObservableObject {
         workflows[workflowIndex].steps[stepIndex].finishedAt = .now
         workflows[workflowIndex].steps[stepIndex].resultSummary = summary
         workflows[workflowIndex].steps[stepIndex].outputExcerpt = sanitizedExcerpt(output)
+        for index in workflows[workflowIndex].steps.indices where index > stepIndex &&
+            workflows[workflowIndex].steps[index].status == .pending {
+            workflows[workflowIndex].steps[index].status = .cancelled
+            workflows[workflowIndex].steps[index].finishedAt = .now
+            workflows[workflowIndex].steps[index].resultSummary = "Cancelled because the workflow was stopped."
+        }
         workflows[workflowIndex].lastFailure = summary
         workflows[workflowIndex].status = .cancelled
         activeWorkflowID = nil
