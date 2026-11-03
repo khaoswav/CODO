@@ -12,7 +12,12 @@ struct DeveloperIntelligenceTests {
         try testBuildFailureFingerprinting()
         try testAgentWorkflowTransitionsAndPersistence()
         try testReviewWithoutAppliedChangesCancelsWorkflow()
-        print("PASS: 8 Developer Intelligence and Agent Orchestrator test groups")
+        try testUnifiedDiffParserAndPathSafety()
+        try testProjectFileChangeStaleReviewProtection()
+        try testXcodeBuildPlanning()
+        try testWebBuildPlanning()
+        try testGitWorkflowInputPolicies()
+        print("PASS: 13 Developer Intelligence, Agent Orchestrator, Diff, Build and Git regression groups")
     }
 
     static func testSwiftModuleResolution() throws {
@@ -212,6 +217,165 @@ struct DeveloperIntelligenceTests {
                    "Downstream steps should be marked cancelled when no patch is applied")
         try expect(store.workflows.first?.steps.allSatisfy({ $0.status != .pending }) == true,
                    "Cancelled workflows should not leave pending steps behind")
+    }
+
+
+    static func testUnifiedDiffParserAndPathSafety() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CODO-Diff-Test-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("App.swift")
+        try "let title = \"Old\"\nprint(\"old\")\n".write(to: source, atomically: true, encoding: .utf8)
+        let project = CODOProject(name: "Diff Fixture", path: root.path, kind: .macOS)
+        let patch = """
+        diff --git a/App.swift b/App.swift
+        --- a/App.swift
+        +++ b/App.swift
+        @@ -1,2 +1,2 @@
+         let title = "Old"
+        -print("old")
+        +print("new")
+        """
+        let changes = try AIUnifiedDiffParser.parse(patch, project: project, root: root)
+        try expect(changes.count == 1, "A valid single-file unified diff should produce one review item")
+        try expect(changes[0].relativePath == "App.swift", "Diff review should preserve a project-relative path")
+        try expect(changes[0].proposedText == "let title = \"Old\"\nprint(\"new\")\n",
+                   "Diff application should preserve unchanged lines and trailing newline")
+
+        let traversal = """
+        --- a/../outside.swift
+        +++ b/../outside.swift
+        @@ -1 +1 @@
+        -old
+        +new
+        """
+        do {
+            _ = try AIUnifiedDiffParser.parse(traversal, project: project, root: root)
+            throw TestFailure.assertion("Parent-directory traversal must be rejected")
+        } catch AIUnifiedDiffError.unsafePath(_) {
+            // Expected: project-root escape rejected.
+        }
+
+        let mismatch = """
+        --- a/App.swift
+        +++ b/App.swift
+        @@ -1,1 +1,1 @@
+        -not the current source
+        +replacement
+        """
+        do {
+            _ = try AIUnifiedDiffParser.parse(mismatch, project: project, root: root)
+            throw TestFailure.assertion("A stale diff context must be rejected")
+        } catch AIUnifiedDiffError.contextMismatch(_) {
+            // Expected: stale source context rejected.
+        }
+
+        do {
+            _ = try AIUnifiedDiffParser.parse("Goose response without a diff", project: project, root: root)
+            throw TestFailure.assertion("Output without a unified diff must be rejected")
+        } catch AIUnifiedDiffError.noChanges {
+            // Expected: no supported diff found.
+        }
+    }
+
+    static func testProjectFileChangeStaleReviewProtection() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CODO-FileChange-Test-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("Settings.json")
+        try "{\"value\":1}\n".write(to: file, atomically: true, encoding: .utf8)
+        let project = CODOProject(name: "Change Fixture", path: root.path, kind: .macOS)
+        let change = try ProjectFileChangeService.prepare(
+            file: file, project: project, root: root, proposedText: "{\"value\":2}\n"
+        )
+        try expect(change.relativePath == "Settings.json", "Prepared changes must store a relative path")
+
+        try "{\"value\":3}\n".write(to: file, atomically: true, encoding: .utf8)
+        do {
+            try ProjectFileChangeService.apply(change, project: project, root: root, approved: true)
+            throw TestFailure.assertion("Applying a stale review must fail")
+        } catch ProjectFileChangeError.fileChanged {
+            // Expected: stale review cannot overwrite newer user edits.
+        }
+        let current = try String(contentsOf: file, encoding: .utf8)
+        try expect(current == "{\"value\":3}\n", "Stale review rejection must preserve the user's latest file")
+
+        let outside = FileManager.default.temporaryDirectory.appendingPathComponent("outside-\(UUID().uuidString).swift")
+        try "let value = 1\n".write(to: outside, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: outside) }
+        do {
+            _ = try ProjectFileChangeService.prepare(file: outside, project: project, root: root, proposedText: "let value = 2\n")
+            throw TestFailure.assertion("Files outside the imported project must be rejected")
+        } catch ProjectFileChangeError.outsideProject {
+            // Expected: project boundary enforced.
+        }
+    }
+
+    static func testXcodeBuildPlanning() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CODO-XcodePlan-Test-\(UUID().uuidString)", isDirectory: true)
+        let projectBundle = root.appendingPathComponent("Fixture.xcodeproj", isDirectory: true)
+        let schemes = projectBundle.appendingPathComponent("xcshareddata/xcschemes", isDirectory: true)
+        try FileManager.default.createDirectory(at: schemes, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try "<Scheme/>".write(to: schemes.appendingPathComponent("Zeta.xcscheme"), atomically: true, encoding: .utf8)
+        try "<Scheme/>".write(to: schemes.appendingPathComponent("Alpha.xcscheme"), atomically: true, encoding: .utf8)
+        let project = CODOProject(name: "Fixture", path: root.path, kind: .macOS)
+        let debug = ProjectBuildPlanner.plan(.xcodeDebugBuild, root: root, project: project)
+        let release = ProjectBuildPlanner.plan(.xcodeReleaseBuild, root: root, project: project)
+        try expect(debug?.executable.path == "/usr/bin/xcodebuild", "Xcode builds must use the explicit xcodebuild executable")
+        try expect(debug?.arguments.contains("Debug") == true, "Debug action must select Debug configuration")
+        try expect(release?.arguments.contains("Release") == true, "Release action must select Release configuration")
+        try expect(debug?.arguments.contains("Alpha") == true, "Shared schemes should be selected deterministically by name")
+        try expect(debug?.arguments.contains("-project") == true, "Xcode project containers should use the -project argument")
+
+        let empty = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CODO-NoXcode-Test-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: empty) }
+        try expect(ProjectBuildPlanner.plan(.xcodeDebugBuild, root: empty, project: project) == nil,
+                   "An Xcode build without a project or workspace must not be planned")
+    }
+
+    static func testWebBuildPlanning() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CODO-WebPlan-Test-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let package = root.appendingPathComponent("package.json")
+        try "{\"name\":\"fixture\",\"packageManager\":\"pnpm@9.0.0\",\"scripts\":{\"build\":\"vite build\",\"test\":\"vitest run\"}}"
+            .write(to: package, atomically: true, encoding: .utf8)
+        try Data().write(to: root.appendingPathComponent("pnpm-lock.yaml"))
+        let project = CODOProject(name: "Web Fixture", path: root.path, kind: .web)
+        let build = ProjectBuildPlanner.plan(.webBuild, root: root, project: project)
+        let test = ProjectBuildPlanner.plan(.webTest, root: root, project: project)
+        try expect(build?.executable.path == "/usr/bin/env", "Web scripts should be launched through env without shell interpolation")
+        try expect(build?.arguments == ["pnpm", "run", "build"], "Declared pnpm package manager should be respected")
+        try expect(test?.arguments == ["pnpm", "run", "test"], "Web test planner should select the test script")
+        try "{\"name\":\"fixture\",\"scripts\":{\"build\":\"vite build\"}}"
+            .write(to: package, atomically: true, encoding: .utf8)
+        try expect(ProjectBuildPlanner.plan(.webTest, root: root, project: project) == nil,
+                   "Missing web test scripts must not produce a runnable command")
+    }
+
+    @MainActor
+    static func testGitWorkflowInputPolicies() throws {
+        try expect(GitWorkflowService.isValidBranchName("feature/audio-engine"),
+                   "A conventional feature branch name should be accepted")
+        for invalid in ["", "-force", "../outside", "feature//bad", "feature/name.", "bad name", "x;rm"] {
+            try expect(!GitWorkflowService.isValidBranchName(invalid), "Unsafe branch name should be rejected: \(invalid)")
+        }
+        try expect(GitWorkflowService.isValidBaseBranch("main"), "A normal base branch should be accepted")
+        try expect(!GitWorkflowService.isValidBaseBranch("--upload-pack=evil"),
+                   "Option-like base branch names must be rejected")
+        try expect(GitWorkflowService.stagedCommitArguments("  Update audio engine\n") == ["commit", "-m", "Update audio engine"],
+                   "Commit message must remain a single argument, not shell syntax")
+        try expect(GitWorkflowService.stagedCommitArguments(" \n ") == nil,
+                   "Empty commit messages must be rejected")
+        try expect(GitWorkflowService.stagedCommitArguments("safe; echo injected") == ["commit", "-m", "safe; echo injected"],
+                   "Shell metacharacters in commit messages must remain inert argument content")
     }
 
     static func expect(_ condition: @autoclosure () -> Bool, _ message: String) throws {

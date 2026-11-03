@@ -35,7 +35,8 @@ Apple-native SwiftUI, system light/dark appearance, semantic AppKit colors, nati
 - [x] Debug and Release macOS CI workflow
 
 ## In progress
-- [ ] Verify Debug and Release CI on the latest Developer Intelligence commit
+- [x] Verify Debug and Release CI on the latest Developer Intelligence commit (run 41730302278 succeeded)
+- [x] Run expanded regression suite for unified diff, file changes, build planning and Git input policies in CI (PR #3 workflow 41731717894: Debug and Release test/build jobs succeeded)
 - [ ] Add automated tests for command approval, build planning and file change safety
 - [ ] Improve Xcode scheme selection and build result parsing
 - [x] Add project-wide source/config inventory with file, line and language metrics
@@ -52,7 +53,7 @@ Apple-native SwiftUI, system light/dark appearance, semantic AppKit colors, nati
 - [x] Support npm/yarn/pnpm package manager detection and non-watch test execution
 - [x] Add true unified diff parsing and per-file patch review for Goose proposals
 - [x] Add automated Developer Intelligence, source graph, build diagnostic and Agent Orchestrator regression tests
-- [ ] Add patch parser and Git workflow automated unit tests
+- [x] Add automated regression coverage for unified diff parsing, unsafe paths, stale patch context, file-change safety, Xcode Debug/Release planning, web build/test planning and Git input validation
 - [x] Goose CLI process adapter with live output and cancellation
 - [x] Provider/model preferences persisted locally and API key stored in macOS Keychain
 - [x] AI Workspace task submission with explicit per-run approval
@@ -99,8 +100,15 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - Follow-up improvements add npm/yarn/pnpm detection and Unity Hub editor discovery. Goose integration CI initially exposed a duplicate PBX object ID, corrected in commit 12f4d5d. Developer Intelligence CI exposed a missing Xcode project registration for GitWorkflowService.swift; the file reference and source build entry were added in commit 1300410d.
 - Developer Intelligence test runs caught and fixed project-root URL normalization in the recursive scanner, and a retry-stage selector that could mistake the Planner step for the Implementer step. Fixes are in commits 71628b1, 57da220 and 120f900.
 - Latest CI run 41726171868 succeeded: all six Developer Intelligence/Agent Orchestrator test groups passed, and both Debug and Release Xcode builds succeeded.
+- PR #3 regression-hardening CI run 41731717894 succeeded: the expanded regression test stage and Xcode Debug/Release builds passed in both jobs. Release build log ends with `** BUILD SUCCEEDED **`.
 - Build adapters are implemented but have not yet been run against real Xcode, Unity or web projects on the user's Mac.
 - Physical Mac launch and visual validation have not been performed.
+
+## Regression and personal-use hardening
+- Added a dedicated regression test stage for unified diff parsing, path traversal rejection, stale patch context, project file boundary enforcement, stale review protection, Xcode Debug/Release planning, web build/test script selection, and Git branch/base/commit argument validation.
+- Git branch and base validation plus staged commit argument construction are exposed as deterministic policy helpers so the same rules can be regression-tested without executing Git mutations.
+- The macOS workflow now runs for pull requests targeting any branch, which supports this stacked personal-development workflow.
+- These tests are automated CI checks; they do not replace running CODO against real local projects on the user's Mac.
 
 ## Next
 - [ ] Physically launch CODO on the user's Mac and inspect the native dependency graph.

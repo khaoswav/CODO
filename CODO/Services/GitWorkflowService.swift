@@ -31,10 +31,28 @@ final class GitWorkflowService: ObservableObject {
             }
     }
 
-    func createBranch(_ name: String, project: CODOProject, root: URL, approvalGranted: Bool) {
+    nonisolated static func isValidBranchName(_ name: String) -> Bool {
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._/-")
-        guard !name.isEmpty, name.unicodeScalars.allSatisfy({ allowed.contains($0) }),
-              !name.hasPrefix("-"), !name.contains(".."), !name.hasSuffix("/") else {
+        return !name.isEmpty && name.unicodeScalars.allSatisfy({ allowed.contains($0) }) &&
+            !name.hasPrefix("-") && !name.contains("..") && !name.hasSuffix("/") &&
+            !name.hasSuffix(".") && !name.contains("//")
+    }
+
+    nonisolated static func isValidBaseBranch(_ name: String) -> Bool {
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._/-")
+        return !name.isEmpty && name.unicodeScalars.allSatisfy({ allowed.contains($0) }) &&
+            !name.hasPrefix("-") && !name.contains("..") && !name.hasSuffix("/") &&
+            !name.hasSuffix(".") && !name.contains("//")
+    }
+
+    nonisolated static func stagedCommitArguments(_ message: String) -> [String]? {
+        let clean = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return nil }
+        return ["commit", "-m", clean]
+    }
+
+    func createBranch(_ name: String, project: CODOProject, root: URL, approvalGranted: Bool) {
+        guard Self.isValidBranchName(name) else {
             statusMessage = "Invalid branch name."
             return
         }
@@ -42,9 +60,11 @@ final class GitWorkflowService: ObservableObject {
     }
 
     func commitStagedChanges(_ message: String, project: CODOProject, root: URL, approvalGranted: Bool) {
-        let clean = message.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty else { statusMessage = "Commit message is required."; return }
-        runGit(["commit", "-m", clean], project: project, root: root, approvalGranted: approvalGranted)
+        guard let arguments = Self.stagedCommitArguments(message) else {
+            statusMessage = "Commit message is required."
+            return
+        }
+        runGit(arguments, project: project, root: root, approvalGranted: approvalGranted)
     }
 
     func push(project: CODOProject, root: URL, approvalGranted: Bool) {
@@ -52,8 +72,7 @@ final class GitWorkflowService: ObservableObject {
     }
 
     func createPullRequest(project: CODOProject, root: URL, base: String = "main", approvalGranted: Bool) {
-        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._/-")
-        guard !base.isEmpty, base.unicodeScalars.allSatisfy({ allowed.contains($0) }), !base.hasPrefix("-") else {
+        guard Self.isValidBaseBranch(base) else {
             statusMessage = "Invalid base branch."
             return
         }

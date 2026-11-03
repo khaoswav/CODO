@@ -2,7 +2,7 @@ name: macOS Build
 
 on:
   pull_request:
-    branches: [main]
+    branches: ["**"]
   push:
     branches: [main]
   workflow_dispatch:
@@ -27,6 +27,11 @@ jobs:
             CODO/Models/CODOProject.swift \
             CODO/Services/DeveloperIntelligenceService.swift \
             CODO/Services/AgentOrchestratorStore.swift \
+            CODO/Services/AIUnifiedDiffParser.swift \
+            CODO/Services/ProjectFileChangeService.swift \
+            CODO/Services/ProjectBuildPlanner.swift \
+            CODO/Services/ProjectProcessRunner.swift \
+            CODO/Services/GitWorkflowService.swift \
             Tests/DeveloperIntelligenceTests.swift \
             -framework SwiftUI \
             -o "$RUNNER_TEMP/codo-intelligence-tests"
