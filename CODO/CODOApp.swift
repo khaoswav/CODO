@@ -14,7 +14,7 @@ struct CODOApp: App {
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("New Project") { store.addSampleProject() }
+                Button("New Project") { store.importProject() }
                     .keyboardShortcut("n", modifiers: .command)
             }
         }
