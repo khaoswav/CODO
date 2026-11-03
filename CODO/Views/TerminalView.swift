@@ -10,6 +10,10 @@ struct TerminalView: View {
     private var availableCommands: [ProjectCommand] {
         ProjectCommand.available(for: project?.kind ?? .other) + ProjectCommand.buildCommands(for: project?.kind ?? .other)
     }
+    private var selectedCommandPreview: String {
+        guard let project, let root = store.projectRootURL(for: project) else { return selectedCommand.displayCommand }
+        return ProjectBuildPlanner.plan(selectedCommand, root: root, project: project)?.display ?? selectedCommand.displayCommand
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -75,7 +79,7 @@ struct TerminalView: View {
             }
             .frame(maxWidth: 230)
 
-            Text(selectedCommand.displayCommand)
+            Text(selectedCommandPreview)
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(CODOTheme.secondaryText)
                 .lineLimit(1)
@@ -107,7 +111,7 @@ struct TerminalView: View {
 
 
     private var approvalDescription: String {
-        "CODO will run the selected build or test command inside the imported project folder. This may create or modify build output and generated files. Review the command before approving. No arbitrary shell command is accepted."
+        "Command: \\(selectedCommandPreview)\\n\\nCODO will run this build or test inside the imported project folder. It may create or modify build output and generated files. No arbitrary shell command is accepted."
     }
 
     private func enqueueSelectedCommand(approved: Bool) {
