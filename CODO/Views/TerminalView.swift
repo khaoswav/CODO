@@ -2,7 +2,7 @@ import SwiftUI
 
 struct TerminalView: View {
     @EnvironmentObject private var store: ProjectStore
-    @StateObject private var runner = ProjectProcessRunner()
+    @EnvironmentObject private var taskQueue: TaskQueueStore
     @State private var selectedCommand: ProjectCommand = .location
 
     private var project: CODOProject? { store.selectedProject }
@@ -17,6 +17,7 @@ struct TerminalView: View {
             if let project {
                 commandBar(for: project)
                 Divider().overlay(CODOTheme.border)
+                queueSummary
                 outputPanel
             } else {
                 ContentUnavailableView(
@@ -44,9 +45,9 @@ struct TerminalView: View {
             Spacer()
             HStack(spacing: 7) {
                 Circle()
-                    .fill(runner.isRunning ? CODOTheme.orange : CODOTheme.green)
+                    .fill(taskQueue.isRunning ? CODOTheme.orange : CODOTheme.green)
                     .frame(width: 7, height: 7)
-                Text(runner.status)
+                Text(taskQueue.processStatus)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(CODOTheme.secondaryText)
             }
@@ -66,7 +67,6 @@ struct TerminalView: View {
                 }
             }
             .frame(maxWidth: 230)
-            .disabled(runner.isRunning)
 
             Text(selectedCommand.displayCommand)
                 .font(.system(size: 11, design: .monospaced))
@@ -77,38 +77,51 @@ struct TerminalView: View {
 
             Button {
                 guard let root = store.projectRootURL(for: project) else { return }
-                runner.run(selectedCommand, for: project, root: root)
+                taskQueue.enqueue(selectedCommand, project: project, root: root)
             } label: {
-                Label("Run", systemImage: "play.fill")
+                Label("Queue task", systemImage: "plus")
             }
             .buttonStyle(AccentButtonStyle())
-            .disabled(runner.isRunning)
 
             Button {
-                runner.stop()
+                taskQueue.stopCurrent()
             } label: {
                 Label("Stop", systemImage: "stop.fill")
             }
             .buttonStyle(.bordered)
-            .disabled(!runner.isRunning)
+            .disabled(!taskQueue.isRunning)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
     }
 
+    private var queueSummary: some View {
+        HStack(spacing: 14) {
+            Label("\(taskQueue.runningCount) running", systemImage: "arrow.trianglehead.2.clockwise")
+            Label("\(taskQueue.queuedCount) queued", systemImage: "clock")
+            Spacer()
+            Text("History saved locally")
+                .foregroundStyle(CODOTheme.mutedText)
+        }
+        .font(.system(size: 10, weight: .medium))
+        .foregroundStyle(CODOTheme.secondaryText)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 9)
+    }
+
     private var outputPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Label("OUTPUT", systemImage: "terminal")
+                Label("LIVE OUTPUT", systemImage: "terminal")
                     .font(.system(size: 10, weight: .bold))
                     .tracking(1)
                     .foregroundStyle(CODOTheme.mutedText)
                 Spacer()
-                Button("Clear") { runner.clear() }
+                Button("Clear") { taskQueue.runner.clear(); }
                     .font(.system(size: 11))
                     .buttonStyle(.plain)
                     .foregroundStyle(CODOTheme.secondaryText)
-                    .disabled(runner.isRunning)
+                    .disabled(taskQueue.isRunning)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -116,7 +129,7 @@ struct TerminalView: View {
             Divider().overlay(CODOTheme.border)
 
             ScrollView {
-                Text(runner.output.isEmpty ? "Command output will appear here.\n\nOnly built-in diagnostic commands are available in this first version." : runner.output)
+                Text(taskQueue.liveOutput.isEmpty ? "Command output will appear here.\n\nQueued commands run one at a time. Only built-in diagnostic commands are available in this first version." : taskQueue.liveOutput)
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundStyle(CODOTheme.primaryText)
                     .textSelection(.enabled)
