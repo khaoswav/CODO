@@ -114,10 +114,11 @@ enum DeveloperIntelligenceService {
                 continue
             }
 
-            let relative = String(url.path.dropFirst(rootPath.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             let canonicalFile = url.resolvingSymlinksInPath().standardizedFileURL
-            guard !relative.isEmpty, url.path.hasPrefix(rootPrefix),
-                  canonicalFile.path.hasPrefix(rootPrefix) else { continue }
+            guard canonicalFile.path.hasPrefix(rootPrefix) else { continue }
+            let relative = String(canonicalFile.path.dropFirst(rootPath.count))
+                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            guard !relative.isEmpty else { continue }
             let ext = url.pathExtension.lowercased()
             guard sourceExtensions.contains(ext) || configExtensions.contains(ext) else { continue }
             guard files.count < maximumFiles else { truncated = true; break }
