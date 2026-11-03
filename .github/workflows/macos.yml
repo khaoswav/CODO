@@ -21,6 +21,9 @@ jobs:
         configuration: [Debug, Release]
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Run Developer Intelligence tests
         run: |
           swiftc -parse-as-library \
@@ -36,13 +39,16 @@ jobs:
             -framework SwiftUI \
             -o "$RUNNER_TEMP/codo-intelligence-tests"
           "$RUNNER_TEMP/codo-intelligence-tests"
-      - name: Build CODO
+      - name: Run build adapter end-to-end tests
+        env:
+          CODO_BUILD_CONFIGURATION: ${{ matrix.configuration }}
         run: |
-          xcodebuild \
-            -project CODO.xcodeproj \
-            -scheme CODO \
-            -configuration "${{ matrix.configuration }}" \
-            -sdk macosx \
-            -destination 'platform=macOS,arch=arm64' \
-            CODE_SIGNING_ALLOWED=NO \
-            build
+          swiftc -parse-as-library \
+            CODO/Models/CODOProject.swift \
+            CODO/Services/ProjectAnalyzer.swift \
+            CODO/Services/ProjectBuildPlanner.swift \
+            CODO/Services/ProjectProcessRunner.swift \
+            Tests/BuildAdapterIntegrationTests.swift \
+            -framework SwiftUI \
+            -o "$RUNNER_TEMP/codo-build-adapter-e2e"
+          "$RUNNER_TEMP/codo-build-adapter-e2e"
