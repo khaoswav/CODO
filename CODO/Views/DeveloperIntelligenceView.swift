@@ -16,6 +16,7 @@ struct DeveloperIntelligenceView: View {
         var id: String { rawValue }
     }
     @EnvironmentObject private var store: ProjectStore
+    @EnvironmentObject private var orchestrator: AgentOrchestratorStore
     @State private var report: DeveloperIntelligenceReport?
     @State private var memory = ProjectMemory(projectID: UUID(), projectName: "")
     @State private var request = ""
@@ -61,6 +62,7 @@ struct DeveloperIntelligenceView: View {
                         }
                         buildFailurePanel
                         taskPlannerPanel
+                        agentWorkflowPanel
                         gitWorkflowPanel
                         projectMemoryPanel
                     }
@@ -340,6 +342,9 @@ struct DeveloperIntelligenceView: View {
                             String(index + 1) + ". " + step.title + ": " + step.detail
                         }.joined(separator: "\n")
                         let task = "User request: " + request + "\n\nFollow this staged workflow and report progress at each stage. Do not bypass file review or command approval:\n" + steps
+                        if let project {
+                            orchestrator.start(project: project, request: request, plan: plan)
+                        }
                         onStartTask(task)
                     } label: {
                         Label("Continue in AI Workspace", systemImage: "arrow.right")
@@ -367,6 +372,62 @@ struct DeveloperIntelligenceView: View {
                         }
                     }
                 }
+            }
+        }
+        .padding(18)
+        .background(CODOTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(CODOTheme.border, lineWidth: 1))
+    }
+
+    private var agentWorkflowPanel: some View {
+        let workflow = orchestrator.activeWorkflow ?? orchestrator.workflows.first
+        return VStack(alignment: .leading, spacing: 11) {
+            HStack {
+                Label("Agent Orchestrator", systemImage: "point.3.filled.connected.trianglepath.dotted")
+                    .font(.system(size: 13, weight: .semibold))
+                Spacer()
+                if let workflow {
+                    Text(workflow.status.rawValue.uppercased())
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(workflow.status == .failed ? CODOTheme.red :
+                            workflow.status == .succeeded ? CODOTheme.green : CODOTheme.orange)
+                }
+            }
+            if let workflow {
+                Text(workflow.request).font(.system(size: 10)).foregroundStyle(CODOTheme.secondaryText)
+                    .lineLimit(3)
+                ForEach(Array(workflow.steps.enumerated()), id: \.element.id) { index, step in
+                    HStack(alignment: .top, spacing: 9) {
+                        Image(systemName: step.status == .succeeded ? "checkmark.circle.fill" :
+                                step.status == .running ? "arrow.trianglehead.2.clockwise.circle.fill" :
+                                step.status == .awaitingApproval ? "hand.raised.circle.fill" :
+                                step.status == .failed ? "xmark.circle.fill" : "circle")
+                            .foregroundStyle(step.status == .succeeded ? CODOTheme.green :
+                                step.status == .failed ? CODOTheme.red :
+                                step.status == .awaitingApproval ? CODOTheme.orange : CODOTheme.mutedText)
+                            .frame(width: 16)
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack {
+                                Text("\(index + 1). \(step.title)").font(.system(size: 10, weight: .semibold))
+                                Spacer()
+                                Text(step.status.rawValue.uppercased())
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(CODOTheme.secondaryText)
+                            }
+                            if let result = step.resultSummary {
+                                Text(result).font(.system(size: 9)).foregroundStyle(CODOTheme.secondaryText)
+                                    .lineLimit(2)
+                            }
+                        }
+                    }
+                }
+                if let failure = workflow.lastFailure {
+                    Text(failure).font(.system(size: 9)).foregroundStyle(CODOTheme.red)
+                        .textSelection(.enabled)
+                }
+            } else {
+                Text("No agent workflow started. Create a staged plan above to track each Goose, review and build step.")
+                    .font(.system(size: 10)).foregroundStyle(CODOTheme.secondaryText)
             }
         }
         .padding(18)
