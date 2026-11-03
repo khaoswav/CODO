@@ -65,11 +65,13 @@ struct DeveloperIntelligenceTests {
         try "struct AudioEngine {}\n".write(
             to: root.appendingPathComponent("AudioEngine.swift"), atomically: true, encoding: .utf8
         )
-        try "import { helper } from \"./helpers\";\n".write(
+        let subfolder = root.appendingPathComponent("Sub", isDirectory: true)
+        try FileManager.default.createDirectory(at: subfolder, withIntermediateDirectories: true)
+        try "import { helper } from \"./Sub/helpers\";\n".write(
             to: root.appendingPathComponent("main.ts"), atomically: true, encoding: .utf8
         )
         try "export const helper = true;\n".write(
-            to: root.appendingPathComponent("helpers.ts"), atomically: true, encoding: .utf8
+            to: subfolder.appendingPathComponent("helpers.ts"), atomically: true, encoding: .utf8
         )
         let report = DeveloperIntelligenceService.analyze(root: root, projectName: "Fixture")
         print("SCAN FILES: " + report.files.map(\.path).joined(separator: ", "))
