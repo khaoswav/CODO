@@ -360,6 +360,7 @@ struct DeveloperIntelligenceTests {
                    "Missing web test scripts must not produce a runnable command")
     }
 
+    @MainActor
     static func testGitWorkflowInputPolicies() throws {
         try expect(GitWorkflowService.isValidBranchName("feature/audio-engine"),
                    "A conventional feature branch name should be accepted")
