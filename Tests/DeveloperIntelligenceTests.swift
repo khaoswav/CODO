@@ -132,15 +132,19 @@ struct DeveloperIntelligenceTests {
         store.approveCurrentStep()
         store.buildFailed("Compiler error: missing symbol")
         try expect(store.activeWorkflow?.status == .failed, "Build failure should fail the workflow")
-        store.resumeForFix()
-        try expect(store.activeWorkflow?.steps.first(where: { $0.title.contains("Implement") })?.status == .running,
-                   "Fix retry should restart at implementation")
-        store.proposalReady()
-        store.completeCurrentAndAdvance("AI review complete.")
-        store.reviewCompleted(appliedCount: 1, rejectedCount: 0)
-        store.approveCurrentStep()
-        store.buildSucceeded()
-        try expect(store.activeWorkflow == nil, "Successful build should close the active workflow")
+
+        // Simulate relaunch: failed workflows are restored as history and can be resumed explicitly.
+        let recovered = AgentOrchestratorStore(storageURL: storage)
+        try expect(recovered.activeWorkflow == nil, "A failed workflow should not resume automatically after relaunch")
+        recovered.resumeForFix()
+        try expect(recovered.activeWorkflow?.steps.first(where: { $0.title.contains("Implement") })?.status == .running,
+                   "Fix retry should reselect the persisted failed workflow and restart at implementation")
+        recovered.proposalReady()
+        recovered.completeCurrentAndAdvance("AI review complete.")
+        recovered.reviewCompleted(appliedCount: 1, rejectedCount: 0)
+        recovered.approveCurrentStep()
+        recovered.buildSucceeded()
+        try expect(recovered.activeWorkflow == nil, "Successful build should close the active workflow")
         let restored = AgentOrchestratorStore(storageURL: storage)
         try expect(restored.workflows.first?.status == .succeeded, "Completed workflow should persist across launches")
     }
