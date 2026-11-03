@@ -13,6 +13,7 @@ enum CODOTheme {
     static let mutedText = Color(nsColor: .tertiaryLabelColor)
     static let green = Color(nsColor: .systemGreen)
     static let orange = Color(nsColor: .systemOrange)
+    static let red = Color(nsColor: .systemRed)
 }
 
 extension Color {
