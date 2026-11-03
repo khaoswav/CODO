@@ -116,7 +116,7 @@ final class ProjectStore: ObservableObject {
         return perform(root)
     }
 
-    func projectRootURL(for project: CODOProject) -> URL? {
+    func analyze(_ project: CODOProject) -> ProjectAnalysis? {\n        withProjectAccess(project) { root in\n            ProjectAnalyzer.analyze(at: root, kind: project.kind)\n        } ?? nil\n    }\n\n    func projectRootURL(for project: CODOProject) -> URL? {
         guard let bookmarkData = project.bookmarkData else {
             return URL(fileURLWithPath: project.path)
         }
