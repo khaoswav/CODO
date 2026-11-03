@@ -89,9 +89,9 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - Task Engine milestone CI: Debug and Release succeeded on commit b5c29334f5884adf3365529c7a11e1b95f565f75.
 - An earlier Command Approval + Build Engine CI attempt exposed a Swift optional-chaining parse error in Xcode scheme discovery; the source was corrected in commit 3f8d93d.
 - Goose integration CI exposed that GooseConfiguration needed Codable conformance for preference persistence; fixed in commit 8e91be7.
-- Follow-up improvements add npm/yarn/pnpm detection and broader Unity Hub editor discovery. The latest CI attempt for the Goose integration initially failed because a new PBX file reference reused an existing Xcode project object ID. The collision was corrected with unique IDs in commit 12f4d5d; later Goose and patch-review changes still require fresh Debug and Release CI.
+- Follow-up improvements add npm/yarn/pnpm detection and broader Unity Hub editor discovery. Goose integration CI initially exposed a duplicate PBX object ID, corrected in commit 12f4d5d. The Developer Intelligence CI run 41721464681 then exposed a missing Xcode project registration for GitWorkflowService.swift; the file reference and source build entry were added in commit 1300410d. A fresh Debug and Release run is required for the corrected head.
 - Build adapters are implemented but have not yet been run against real Xcode, Unity or web projects on the user's Mac.
 - Physical Mac launch and visual validation have not been performed.
 
 ## Next
-Verify Debug and Release CI for Developer Intelligence, fix compiler errors from actual logs, add automated tests for patch parsing and Git operations, then validate on a physical Mac with a real Xcode/Unity/web project and authenticated Goose/GitHub CLI.
+Verify Debug and Release CI for the corrected Developer Intelligence head, fix any further compiler errors from actual logs, add automated tests for patch parsing and Git operations, then validate on a physical Mac with a real Xcode/Unity/web project and authenticated Goose/GitHub CLI.
