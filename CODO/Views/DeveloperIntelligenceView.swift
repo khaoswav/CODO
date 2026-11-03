@@ -182,28 +182,27 @@ struct DeveloperIntelligenceView: View {
 
     private func architecturePanel(_ report: DeveloperIntelligenceReport) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Dependency map", systemImage: "arrow.triangle.branch")
+            Label("Resolved source graph", systemImage: "point.3.connected.trianglepath.dotted")
                 .font(.system(size: 13, weight: .semibold))
-            if report.dependencies.isEmpty {
-                Text("No source-level import/include links were detected in the scanned files.")
+            Text("\(report.files.count) file nodes · \(report.graphEdges.count) resolved local edges · \(max(0, report.dependencies.count - report.graphEdges.count)) external or unresolved imports")
+                .font(.system(size: 10)).foregroundStyle(CODOTheme.secondaryText)
+            if report.graphEdges.isEmpty {
+                Text("No unambiguous local file-to-file dependencies were resolved. External imports are intentionally excluded from the local graph.")
                     .font(.system(size: 11)).foregroundStyle(CODOTheme.secondaryText)
             } else {
-                ForEach(report.dependencies.prefix(80)) { dependency in
+                ForEach(report.graphEdges.prefix(100)) { edge in
                     HStack(alignment: .top, spacing: 8) {
-                        Text(dependency.source)
-                            .lineLimit(1)
+                        Text(edge.sourceFile).lineLimit(1)
                         Image(systemName: "arrow.right").foregroundStyle(CODOTheme.accent)
-                        Text(dependency.target)
-                            .lineLimit(1)
+                        Text(edge.targetFile).lineLimit(1)
                         Spacer(minLength: 0)
-                        Text(dependency.kind.uppercased())
-                            .font(.system(size: 8, weight: .bold))
+                        Text(edge.kind.uppercased()).font(.system(size: 8, weight: .bold))
                             .foregroundStyle(CODOTheme.mutedText)
                     }
                     .font(.system(size: 10, design: .monospaced))
                 }
-                if report.dependencies.count > 80 {
-                    Text("Showing first 80 of \(report.dependencies.count) dependency links.")
+                if report.graphEdges.count > 100 {
+                    Text("Showing first 100 of \(report.graphEdges.count) resolved edges.")
                         .font(.system(size: 10)).foregroundStyle(CODOTheme.mutedText)
                 }
             }
