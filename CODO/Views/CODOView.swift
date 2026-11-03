@@ -38,7 +38,7 @@ struct CODOView: View {
                     case .files: ProjectBrowserView()
                     case .project: ProjectOverviewView()
                     case .workspace: WorkspaceView()
-                    case .terminal: TerminalPlaceholderView()
+                    case .terminal: TerminalView()
                     case .activity: ActivityPlaceholderView()
                     }
                 }
