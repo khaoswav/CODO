@@ -67,6 +67,18 @@ final class AgentOrchestratorStore: ObservableObject {
 
     @discardableResult
     func start(project: CODOProject, request: String, plan: [IntelligencePlanStep]) -> UUID {
+        if let previous = activeWorkflowIndex, activeWorkflow != nil {
+            workflows[previous].status = .failed
+            workflows[previous].lastFailure = "Superseded by a newer workflow."
+            if let running = workflows[previous].steps.firstIndex(where: {
+                $0.status == .running || $0.status == .awaitingApproval
+            }) {
+                workflows[previous].steps[running].status = .failed
+                workflows[previous].steps[running].finishedAt = .now
+                workflows[previous].steps[running].resultSummary = "Superseded by a newer workflow."
+            }
+            touchAndPersist(previous)
+        }
         let steps = plan.map {
             AgentWorkflowStep(title: $0.title, detail: $0.detail, requiresApproval: $0.requiresApproval)
         }
@@ -237,7 +249,8 @@ final class AgentOrchestratorStore: ObservableObject {
             if restored.status == .running || restored.status == .awaitingApproval {
                 restored.status = .failed
                 restored.lastFailure = "CODO closed before this workflow completed."
-                for index in restored.steps.indices where restored.steps[index].status == .running {
+                for index in restored.steps.indices where
+                    restored.steps[index].status == .running || restored.steps[index].status == .awaitingApproval {
                     restored.steps[index].status = .failed
                     restored.steps[index].finishedAt = .now
                     restored.steps[index].resultSummary = restored.lastFailure
