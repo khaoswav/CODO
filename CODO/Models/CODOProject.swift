@@ -5,6 +5,7 @@ struct CODOProject: Identifiable, Codable, Hashable {
     var name: String
     var path: String
     var kind: ProjectKind
+    var bookmarkData: Data? = nil
     var updatedAt: Date = .now
     var status: ProjectStatus = .ready
 
@@ -29,6 +30,26 @@ enum ProjectKind: String, Codable, CaseIterable, Identifiable {
         case .web: "globe"
         case .other: "folder"
         }
+    }
+
+    static func detect(at url: URL) -> ProjectKind {
+        let manager = FileManager.default
+        let contents = (try? manager.contentsOfDirectory(atPath: url.path)) ?? []
+        let names = Set(contents.map { $0.lowercased() })
+
+        if names.contains(where: { $0.hasSuffix(".xcodeproj") || $0.hasSuffix(".xcworkspace") }) {
+            return .iOS
+        }
+        if names.contains("assets") && names.contains("projectsettings") {
+            return .unity
+        }
+        if names.contains("package.json") || names.contains("vite.config.js") || names.contains("vite.config.ts") {
+            return .web
+        }
+        if names.contains("contents.xcworkspacedata") {
+            return .iOS
+        }
+        return .other
     }
 }
 
