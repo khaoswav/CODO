@@ -71,6 +71,18 @@ enum AIUnifiedDiffParser {
 
             while index < lines.count && !lines[index].hasPrefix("--- ") {
                 guard lines[index].hasPrefix("@@ ") else { index += 1; continue }
+                let headerParts = lines[index].split(separator: " ")
+                guard headerParts.count >= 3 else { throw AIUnifiedDiffError.malformedPatch(relativePath) }
+                let oldRange = headerParts[1].dropFirst()
+                guard let oldStart = Int(oldRange.split(separator: ",").first ?? "") else {
+                    throw AIUnifiedDiffError.malformedPatch(relativePath)
+                }
+                let targetCursor = oldStart == 0 ? 0 : oldStart - 1
+                guard targetCursor >= sourceCursor && targetCursor <= sourceLines.count else {
+                    throw AIUnifiedDiffError.contextMismatch(relativePath)
+                }
+                outputLines.append(contentsOf: sourceLines[sourceCursor..<targetCursor])
+                sourceCursor = targetCursor
                 foundHunk = true
                 index += 1
 
