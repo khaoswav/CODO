@@ -103,17 +103,17 @@ struct ProjectOverviewView: View {
         VStack(alignment: .leading, spacing: 14) {
             Label("Project details", systemImage: "info.circle")
                 .font(.system(size: 13, weight: .semibold))
-            ForEach(Array(analysis.metadata.enumerated()), id: \.offset) { row in
+            ForEach(analysis.metadata) { item in
                 HStack(alignment: .firstTextBaseline) {
-                    Text(row.element.0)
+                    Text(item.label)
                         .foregroundStyle(CODOTheme.secondaryText)
                     Spacer(minLength: 12)
-                    Text(row.element.1)
+                    Text(item.value)
                         .multilineTextAlignment(.trailing)
                         .textSelection(.enabled)
                 }
                 .font(.system(size: 12))
-                if row.offset < analysis.metadata.count - 1 {
+                if item.id != analysis.metadata.last?.id {
                     Divider().overlay(CODOTheme.border)
                 }
             }
