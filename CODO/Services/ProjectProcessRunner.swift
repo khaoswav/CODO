@@ -51,9 +51,9 @@ enum ProjectCommand: String, CaseIterable, Identifiable {
     static func available(for kind: ProjectKind) -> [ProjectCommand] {
         switch kind {
         case .macOS, .iOS:
-            [.location, .listFiles, .gitStatus, .xcodeTargets, .swiftVersion, .xcodeDebugBuild, .xcodeReleaseBuild]
+            [.location, .listFiles, .gitStatus, .xcodeTargets, .swiftVersion]
         case .web:
-            [.location, .listFiles, .gitStatus, .nodeVersion, .npmVersion, .webBuild, .webTest]
+            [.location, .listFiles, .gitStatus, .nodeVersion, .npmVersion]
         case .unity:
             [.location, .listFiles, .gitStatus]
         case .other:
