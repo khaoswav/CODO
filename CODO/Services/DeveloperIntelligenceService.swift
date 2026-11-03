@@ -474,8 +474,9 @@ enum IntelligenceTaskPlanner {
         [
             IntelligencePlanStep(title: "Understand the request", detail: "Inspect relevant files, project memory, architecture and current Git state.", requiresApproval: false),
             IntelligencePlanStep(title: "Plan the implementation", detail: "Identify affected modules, dependencies, risks and a bounded change set.", requiresApproval: false),
-            IntelligencePlanStep(title: "Implement the change", detail: "Ask Goose for a unified diff proposal. No project files are changed at this stage.", requiresApproval: false),
-            IntelligencePlanStep(title: "Review and approve", detail: "Present each changed file for explicit approval before applying the patch.", requiresApproval: true),
+            IntelligencePlanStep(title: "Implement the change", detail: "The Implementer Agent prepares a unified diff proposal. No project files are changed at this stage.", requiresApproval: false),
+            IntelligencePlanStep(title: "Review the proposal", detail: "A separate Reviewer Agent checks the proposed diff for correctness, scope, security and regressions.", requiresApproval: false),
+            IntelligencePlanStep(title: "Review and approve", detail: "Present each changed file for explicit human approval before applying the patch.", requiresApproval: true),
             IntelligencePlanStep(title: "Build and test", detail: "Run the project-specific build/test commands after explicit approval.", requiresApproval: true),
             IntelligencePlanStep(title: "Report and remember", detail: "Record the outcome, decisions and follow-up work in this project's local memory.", requiresApproval: false)
         ]
