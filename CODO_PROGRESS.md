@@ -7,7 +7,7 @@ Native macOS development command center. Tagline: **Think. Code. Create.**
 Apple-native macOS interaction patterns, SwiftUI, SF Symbols, system typography, clear hierarchy, restrained surfaces, native folder selection and keyboard commands. Dark graphite with a violet accent is the initial appearance.
 
 ## Current milestone
-Milestone 1: Native app foundation and Studio shell.
+Milestone 1: Native app foundation and project browsing.
 
 ## Completed in repository
 - [x] Repository initialized
@@ -16,18 +16,23 @@ Milestone 1: Native app foundation and Studio shell.
 - [x] Project model and local JSON persistence
 - [x] Workspace navigation and project rail
 - [x] Dashboard, AI Workspace placeholder, Terminal and Activity placeholders
-- [x] macOS CI workflow
+- [x] macOS CI workflow with Debug and Release configurations
 - [x] Fixed Xcode source group paths after CI exposed missing source paths
 - [x] Native NSOpenPanel project-folder import
-- [x] Project type detection for Xcode, Unity and common web projects
+- [x] Project type detection for common Xcode, Unity and web folders
 - [x] Security-scoped bookmark metadata stored with imported project records
 - [x] Project import actions in the project rail and Dashboard
+- [x] Project Files workspace
+- [x] Folder navigation constrained to the imported project root
+- [x] Read-only text previews for supported source/config files up to 256 KB
+- [x] Hidden files omitted from the browser by default
+- [x] File browsing reacquires security-scoped access for each operation
 
 ## In progress
-- [ ] Confirm CI on the latest project-import commit
-- [ ] Improve project type detection for macOS versus iOS Xcode targets
-- [ ] Add tests for project persistence and project type detection
-- [ ] Add real project detail and file browser
+- [ ] Confirm Debug and Release CI on latest commit
+- [ ] Add unit tests for project type detection and file access boundaries
+- [ ] Improve macOS versus iOS Xcode project classification
+- [ ] Add safe file editing and change review after the execution engine exists
 
 ## Not implemented yet
 - Agent/task execution
@@ -40,9 +45,9 @@ Milestone 1: Native app foundation and Studio shell.
 - Release packaging
 
 ## Validation
-- A previous source-path-fix revision passed the macOS GitHub Actions build.
-- The latest changes still require CI confirmation.
+- A previous source-path-fix revision passed a macOS Debug CI build.
+- Latest file-browser changes require fresh Debug and Release CI confirmation.
 - Local physical Mac launch and visual validation have not been performed.
 
 ## Next task
-Verify the latest CI, then add a project detail/file browser with safe security-scoped access and tests.
+Verify CI. Then add automated model/service tests and a project overview with detected build targets before implementing the background task engine.
