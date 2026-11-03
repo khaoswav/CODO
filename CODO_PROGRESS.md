@@ -35,12 +35,20 @@ Apple-native SwiftUI, system light/dark appearance, semantic AppKit colors, nati
 - [x] Debug and Release macOS CI workflow
 
 ## In progress
-- [ ] Verify Debug and Release CI on the latest commit
+- [ ] Verify Debug and Release CI on the latest Developer Intelligence commit
 - [ ] Add automated tests for command approval, build planning and file change safety
 - [ ] Improve Xcode scheme selection and build result parsing
+- [x] Add project-wide source/config inventory with file, line and language metrics
+- [x] Build source import/include and package dependency links
+- [x] Add static code-quality and performance heuristics, including TODOs, force unwraps, debug output, blocking I/O, deadlock patterns and embedded-secret detection without printing secret values
+- [x] Persist project-specific purpose, architecture notes, decisions, next steps and latest scan summary locally
+- [x] Feed saved project memory into Goose task context
+- [x] Add staged multi-step task planning and handoff into AI Workspace
+- [x] Add Git branch creation, staged-only commit, push and GitHub CLI pull-request actions behind explicit approval
 - [ ] Add Unity editor discovery beyond the default Unity Hub installation path
 - [ ] Support npm/yarn/pnpm package manager detection and non-watch test execution
-- [ ] Add true unified diff view and file restore from backups
+- [x] Add true unified diff parsing and per-file patch review for Goose proposals
+- [ ] Add patch parser and Git workflow automated unit tests
 - [x] Goose CLI process adapter with live output and cancellation
 - [x] Provider/model preferences persisted locally and API key stored in macOS Keychain
 - [x] AI Workspace task submission with explicit per-run approval
@@ -54,6 +62,14 @@ Apple-native SwiftUI, system light/dark appearance, semantic AppKit colors, nati
 ## Security boundaries
 Current command execution uses fixed, typed command cases and Foundation Process with explicit executable paths and argument arrays. No arbitrary shell string is accepted. Build/test commands require a per-run user approval. File writes are limited to supported text files inside the imported project root, are reviewed before apply, are backed up under Application Support/CODO/Backups, and are rejected if the original file changed after review. Destructive commands, OS-level changes, and autonomous broad file access are not enabled.
 
+## Developer Intelligence validation
+- Recursive source/config inventory is bounded to 4,000 files and 256 KB per file; common generated/vendor directories are skipped.
+- Dependency edges are inferred from language imports/includes and package.json/Unity package manifests. This is a static map, not a full compiler-level dependency graph.
+- Quality/performance findings are heuristic indicators, not a compiler, runtime profiler or formal security audit. Credential-like values are never shown in the report.
+- Project memory is stored locally per project UUID under Application Support/CODO/ProjectMemory and is included in Goose prompts.
+- Multi-step plans are handed to AI Workspace as a staged task. File apply, builds, commits, pushes and PR creation remain approval-gated; the plan does not run unattended subagents.
+- Git integration uses fixed Git argument arrays. Commit only includes already staged files. Push and PR creation require a separate approval; PR creation requires an installed and authenticated GitHub CLI.
+
 ## AI Patch Review + Build/Fix validation
 - Goose unified diff parser accepts modifications to existing supported text files only. It rejects new/deleted/renamed files, unsafe paths, unsupported extensions, oversized patches, and context mismatches.
 - Hunk application honors each unified diff source line offset and verifies context against the current file before preparing a change.
@@ -66,7 +82,8 @@ Current command execution uses fixed, typed command cases and Foundation Process
 ## Goose Integration validation
 - Goose CLI adapter, provider settings UI, Keychain storage, approval prompt, live output, cancellation and Activity history are implemented.
 - Goose is instructed to operate in analysis/proposal-only mode. This prompt is not a hard sandbox; the CLI and its configured extensions may still have capabilities. Do not treat it as an enforced read-only boundary.
-- The current milestone does not yet parse unified diffs into the file review sheet or apply AI-generated patches. Existing manual file review/apply remains separate.
+- Unified diff proposals are parsed and shown in the per-file review sheet. Only supported modifications to existing text files are accepted.
+- Saved project memory is appended to Goose task context. This includes the latest project scan summary, purpose, architecture notes, previous decisions and next steps.
 
 ## Validation
 - Task Engine milestone CI: Debug and Release succeeded on commit b5c29334f5884adf3365529c7a11e1b95f565f75.
@@ -77,4 +94,4 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - Physical Mac launch and visual validation have not been performed.
 
 ## Next
-Verify the latest Debug and Release CI, fix any compiler errors from actual logs, add automated tests for unified diff parsing and file-change safety, then validate the complete workflow on a physical Mac with Goose CLI installed.
+Verify Debug and Release CI for Developer Intelligence, fix compiler errors from actual logs, add automated tests for patch parsing and Git operations, then validate on a physical Mac with a real Xcode/Unity/web project and authenticated Goose/GitHub CLI.
