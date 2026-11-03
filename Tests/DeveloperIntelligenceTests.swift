@@ -65,9 +65,17 @@ struct DeveloperIntelligenceTests {
         try "struct AudioEngine {}\n".write(
             to: root.appendingPathComponent("AudioEngine.swift"), atomically: true, encoding: .utf8
         )
+        let web = root.appendingPathComponent("Web/src", isDirectory: true)
+        try FileManager.default.createDirectory(at: web.appendingPathComponent("lib", isDirectory: true), withIntermediateDirectories: true)
+        try "import { helper } from \"./lib/helpers\";\n".write(
+            to: web.appendingPathComponent("main.ts"), atomically: true, encoding: .utf8
+        )
+        try "export const helper = true;\n".write(
+            to: web.appendingPathComponent("lib/helpers.ts"), atomically: true, encoding: .utf8
+        )
         let report = DeveloperIntelligenceService.analyze(root: root, projectName: "Fixture")
-        try expect(report.files.count == 2, "Scanner should index both Swift files")
-        try expect(report.graphEdges.count == 1, "Scanner should return one resolved local graph edge")
+        try expect(report.files.count == 4, "Scanner should index Swift and TypeScript source files")
+        try expect(report.graphEdges.count == 2, "Scanner should return resolved Swift and TypeScript local graph edges")
         try expect(report.findings.contains(where: { $0.title == "Pending code note" }), "Scanner should detect TODO notes")
     }
 
@@ -87,7 +95,7 @@ struct DeveloperIntelligenceTests {
     @MainActor
     static func testAgentWorkflowTransitionsAndPersistence() throws {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("CODO-Agent-Test-\\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("CODO-Agent-Test-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let storage = directory.appendingPathComponent("workflow.json")
