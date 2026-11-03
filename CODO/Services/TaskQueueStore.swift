@@ -30,6 +30,7 @@ final class TaskQueueStore: ObservableObject {
     @Published private(set) var liveOutput = ""
     @Published private(set) var processStatus = "Ready"
     @Published private(set) var isRunning = false
+    var onTaskCompletion: ((CODOExecutionTask) -> Void)?
 
     let runner = ProjectProcessRunner()
     private var pending: [PendingCommand] = []
@@ -79,6 +80,7 @@ final class TaskQueueStore: ObservableObject {
             }
             self.activeTaskID = nil
             self.persist()
+            self.onTaskCompletion?(self.tasks[index])
             self.runNext()
         }
     }
@@ -86,8 +88,9 @@ final class TaskQueueStore: ObservableObject {
     var queuedCount: Int { tasks.filter { $0.status == .queued }.count }
     var runningCount: Int { tasks.filter { $0.status == .running }.count }
 
-    func enqueue(_ command: ProjectCommand, project: CODOProject, root: URL, approvalGranted: Bool = false) {
-        guard !command.requiresApproval || approvalGranted else { return }
+    @discardableResult
+    func enqueue(_ command: ProjectCommand, project: CODOProject, root: URL, approvalGranted: Bool = false) -> UUID? {
+        guard !command.requiresApproval || approvalGranted else { return nil }
         let planned = ProjectBuildPlanner.plan(command, root: root, project: project)
         let task = CODOExecutionTask(
             projectID: project.id,
@@ -101,6 +104,7 @@ final class TaskQueueStore: ObservableObject {
         trimHistory()
         persist()
         runNext()
+        return task.id
     }
 
     func beginAgentTask(prompt: String, project: CODOProject) -> UUID {
