@@ -129,7 +129,7 @@ struct GooseAgentIntegrationTests {
         try waitForCompletion(service, completionCode: { completionCode })
         try expect(completionCode == 0, "FreeLLMAPI-backed Goose should complete successfully")
         let environment = try String(contentsOf: environmentCapture, encoding: .utf8)
-            .split(separator: "\\n").map(String.init)
+            .split(separator: "\n").map(String.init)
         try expect(environment == [
             "openai", "auto", "freellmapi-test-key", "freellmapi-test-key",
             "http://127.0.0.1:3001", "v1/chat/completions"
