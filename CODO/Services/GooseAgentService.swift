@@ -33,8 +33,12 @@ struct GooseConfiguration: Codable, Equatable {
 
     static func migrated(_ configuration: GooseConfiguration) -> GooseConfiguration {
         var result = configuration
-        if result.provider == "google" && result.model == "gemini-2.5-flash" {
-            result.model = "gemini-3.8-flash"
+        // CODO now uses FreeLLMAPI as its single model gateway.
+        // Old provider-specific credentials are not reused by the new Keychain service.
+        result.provider = "freellmapi"
+        result.model = "auto"
+        if result.baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            result.baseURL = "http://localhost:3001"
         }
         return result
     }
@@ -57,7 +61,7 @@ enum GooseConnectionError: LocalizedError {
 }
 
 enum CODOKeychain {
-    private static let service = "com.kialne.codo.goose"
+    private static let service = "com.kialne.codo.freellmapi"
 
     static func save(_ value: String, account: String = "provider-api-key") throws {
         let data = Data(value.utf8)
