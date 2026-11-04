@@ -333,19 +333,16 @@ struct WorkspaceView: View {
             Text("FreeLLMAPI provides the model gateway. Goose runs the coding-agent workflow against its OpenAI-compatible local API. Your unified key is stored in macOS Keychain.")
                 .font(.system(size: 11)).foregroundStyle(CODOTheme.secondaryText)
             Form {
-                Picker("Provider", selection: $provider) {
-                    Text("FreeLLMAPI").tag("freellmapi")
-                    Text("OpenAI").tag("openai")
-                    Text("Anthropic").tag("anthropic")
-                    Text("Google Gemini").tag("google")
+                HStack {
+                    Text("Model gateway")
+                    Spacer()
+                    Text("FreeLLMAPI")
+                        .foregroundStyle(CODOTheme.highlight)
+                        .fontWeight(.semibold)
                 }
-                if provider == "freellmapi" {
-                    TextField("FreeLLMAPI server", text: $baseURL)
-                    TextField("Model (auto routes)", text: $model)
-                } else {
-                    TextField("Model", text: $model)
-                }
-                SecureField(provider == "freellmapi" ? "FreeLLMAPI unified API key" : "Provider API key", text: $apiKey)
+                TextField("FreeLLMAPI server", text: $baseURL)
+                TextField("Model (auto routes)", text: $model)
+                SecureField("FreeLLMAPI unified API key", text: $apiKey)
                 HStack {
                     Button("Save settings") {
                         userCancelledAgent = false
