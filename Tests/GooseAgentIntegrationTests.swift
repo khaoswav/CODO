@@ -6,9 +6,10 @@ struct GooseAgentIntegrationTests {
     @MainActor
     static func main() throws {
         try testApprovalGateAndProviderConfiguration()
+        try testRetiredGoogleModelMigration()
         try testGooseProcessEnvironmentAndPrompt()
         try testGooseProcessCancellation()
-        print("PASS: 3 Goose CLI process integration groups")
+        print("PASS: 4 Goose CLI process integration groups")
     }
 
     @MainActor
@@ -28,6 +29,30 @@ struct GooseAgentIntegrationTests {
         try expect(!missingKey.isRunning, "Goose must not start without a provider key")
         try expect(missingKey.status == GooseConnectionError.missingConfiguration.localizedDescription,
                    "Missing provider credentials must produce a clear configuration error")
+    }
+
+    @MainActor
+    static func testRetiredGoogleModelMigration() throws {
+        let defaults = UserDefaults.standard
+        let key = "goose.configuration"
+        let original = defaults.data(forKey: key)
+        defer {
+            if let original { defaults.set(original, forKey: key) }
+            else { defaults.removeObject(forKey: key) }
+        }
+
+        let retired = GooseConfiguration(provider: "google", model: "gemini-2.5-flash")
+        defaults.set(try JSONEncoder().encode(retired), forKey: key)
+        let service = GooseAgentService(apiKeyProvider: { "test-key" })
+
+        try expect(service.configuration.provider == "google",
+                   "Google provider selection must be preserved during migration")
+        try expect(service.configuration.model == "gemini-3.8-flash",
+                   "The retired Gemini 2.5 Flash model must migrate to Gemini 3.8 Flash")
+        let persistedData = defaults.data(forKey: key)
+        let persisted = try JSONDecoder().decode(GooseConfiguration.self, from: persistedData ?? Data())
+        try expect(persisted.model == "gemini-3.8-flash",
+                   "The migrated Gemini model must be persisted so the old model is not reused")
     }
 
     @MainActor
