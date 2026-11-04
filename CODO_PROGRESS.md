@@ -178,3 +178,13 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - [ ] Run a real provider-backed Goose task on the user's Mac. Fake-CLI CI does not prove provider authentication, model availability or live Goose behavior.
 - [ ] Physically launch CODO and validate the complete UI workflow on the user's Mac.
 - [ ] PR #7 remains open and draft. No PR has been merged.
+
+## CODO focused agent studio redesign
+- [x] Establish a focused Goose-style product direction: project selection, one conversational agent workspace, reviewable changes, execution history and provider settings.
+- [x] Refresh the SwiftUI visual system with native macOS materials, continuous rounded surfaces, a restrained cyan/indigo palette and responsive button motion.
+- [x] Replace the broad developer dashboard with a focused project launch surface and animated cosmic hero.
+- [x] Simplify primary navigation to Home, Agent, Files and Activity while retaining existing internal views for compatibility during migration.
+- [x] Redesign the agent welcome state, live output header and prompt composer around a focused conversational workflow.
+- [ ] Remove the Goose CLI runtime dependency by implementing and validating CODO's built-in provider/agent engine. The current runtime still uses the Goose compatibility adapter.
+- [ ] Run Debug and Release CI for this redesign branch.
+- [ ] Launch and visually inspect the app on the user's physical Mac. This has not yet been performed.
