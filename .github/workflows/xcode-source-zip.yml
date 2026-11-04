@@ -1,0 +1,43 @@
+name: CODO Xcode Source Project
+
+on:
+  push:
+    branches:
+      - fix/goose-google-api-key-env
+  pull_request:
+    branches:
+      - feature/macos-installable-build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-xcode-project:
+    runs-on: macos-14
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Verify Xcode project and source tree
+        run: |
+          test -d CODO.xcodeproj
+          test -f CODO.xcodeproj/project.pbxproj
+          test -d CODO
+          test -d Tests
+          find CODO -type f -name '*.swift' | sort
+          find Tests -type f -name '*.swift' | sort
+
+      - name: Create Xcode project ZIP
+        run: |
+          zip -r CODO-Xcode-Project.zip CODO.xcodeproj CODO Tests .github README.md CODO_PROGRESS.md
+          unzip -t CODO-Xcode-Project.zip
+          unzip -l CODO-Xcode-Project.zip | head -80
+
+      - name: Upload Xcode project ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: CODO-Xcode-Project
+          path: CODO-Xcode-Project.zip
+          if-no-files-found: error
+          retention-days: 14

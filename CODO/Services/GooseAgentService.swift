@@ -3,8 +3,16 @@ import Security
 import SwiftUI
 
 struct GooseConfiguration: Codable, Equatable {
-    var provider = "openai"
-    var model = "gpt-4.1"
+    var provider = "google"
+    var model = "gemini-3.8-flash"
+
+    static func migrated(_ configuration: GooseConfiguration) -> GooseConfiguration {
+        var result = configuration
+        if result.provider == "google" && result.model == "gemini-2.5-flash" {
+            result.model = "gemini-3.8-flash"
+        }
+        return result
+    }
 }
 
 enum GooseConnectionError: LocalizedError {
@@ -92,7 +100,11 @@ final class GooseAgentService: ObservableObject {
         self.apiKeyProvider = apiKeyProvider
         if let data = UserDefaults.standard.data(forKey: "goose.configuration"),
            let saved = try? JSONDecoder().decode(GooseConfiguration.self, from: data) {
-            configuration = saved
+            let migrated = GooseConfiguration.migrated(saved)
+            configuration = migrated
+            if migrated != saved, let updatedData = try? JSONEncoder().encode(migrated) {
+                UserDefaults.standard.set(updatedData, forKey: "goose.configuration")
+            }
         } else {
             configuration = GooseConfiguration()
         }
@@ -101,13 +113,19 @@ final class GooseAgentService: ObservableObject {
     var onCompletion: ((Int32) -> Void)?
 
     var isConfigured: Bool {
-        !configuration.provider.isEmpty &&
-        !configuration.model.isEmpty &&
-        apiKeyProvider() != nil
+        !configuration.provider.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !configuration.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !(apiKeyProvider() ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     func saveAPIKey(_ key: String) throws {
-        try CODOKeychain.save(key.trimmingCharacters(in: .whitespacesAndNewlines))
+        let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty else {
+            throw NSError(domain: "CODO.Configuration", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "API key cannot be empty."
+            ])
+        }
+        try CODOKeychain.save(trimmedKey)
         status = "Configured"
     }
 
@@ -171,7 +189,7 @@ final class GooseAgentService: ObservableObject {
             environment["GOOSE_API_KEY"] = key
             if configuration.provider == "openai" { environment["OPENAI_API_KEY"] = key }
             if configuration.provider == "anthropic" { environment["ANTHROPIC_API_KEY"] = key }
-            if configuration.provider == "google" { environment["GEMINI_API_KEY"] = key }
+            if configuration.provider == "google" { environment["GOOGLE_API_KEY"] = key }
         }
 
         let safePrompt = """
