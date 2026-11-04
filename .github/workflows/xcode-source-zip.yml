@@ -30,9 +30,7 @@ jobs:
 
       - name: Create Xcode project ZIP
         run: |
-          ditto -c -k --sequesterRsrc --keepParent \
-            CODO.xcodeproj CODO Tests .github README.md CODO_PROGRESS.md \
-            CODO-Xcode-Project.zip
+          zip -r CODO-Xcode-Project.zip CODO.xcodeproj CODO Tests .github README.md CODO_PROGRESS.md
           unzip -t CODO-Xcode-Project.zip
           unzip -l CODO-Xcode-Project.zip | head -80
 
