@@ -6,7 +6,7 @@ struct GooseAgentIntegrationTests {
     @MainActor
     static func main() throws {
         try testApprovalGateAndProviderConfiguration()
-        try testRetiredGoogleModelMigration()
+        try testLegacyProviderMigrationToFreeLLMAPI()
         try testGooseProcessEnvironmentAndPrompt()
         try testFreeLLMAPIProviderEnvironment()
         try testGooseProcessCancellation()
@@ -33,7 +33,8 @@ struct GooseAgentIntegrationTests {
     }
 
     @MainActor
-    static func testRetiredGoogleModelMigration() throws {
+    @MainActor
+    static func testLegacyProviderMigrationToFreeLLMAPI() throws {
         let defaults = UserDefaults.standard
         let key = "goose.configuration"
         let original = defaults.data(forKey: key)
@@ -42,18 +43,20 @@ struct GooseAgentIntegrationTests {
             else { defaults.removeObject(forKey: key) }
         }
 
-        let retired = GooseConfiguration(provider: "google", model: "gemini-2.5-flash")
-        defaults.set(try JSONEncoder().encode(retired), forKey: key)
+        let legacy = GooseConfiguration(provider: "google", model: "gemini-2.5-flash")
+        defaults.set(try JSONEncoder().encode(legacy), forKey: key)
         let service = GooseAgentService(apiKeyProvider: { "test-key" })
 
-        try expect(service.configuration.provider == "google",
-                   "Google provider selection must be preserved during migration")
-        try expect(service.configuration.model == "gemini-3.8-flash",
-                   "The retired Gemini 2.5 Flash model must migrate to Gemini 3.8 Flash")
+        try expect(service.configuration.provider == "freellmapi",
+                   "Legacy provider settings must migrate to the single FreeLLMAPI gateway")
+        try expect(service.configuration.model == "auto",
+                   "Legacy provider-specific models must migrate to FreeLLMAPI auto routing")
+        try expect(service.configuration.baseURL == "http://localhost:3001",
+                   "Legacy configurations must receive the local FreeLLMAPI server default")
         let persistedData = defaults.data(forKey: key)
         let persisted = try JSONDecoder().decode(GooseConfiguration.self, from: persistedData ?? Data())
-        try expect(persisted.model == "gemini-3.8-flash",
-                   "The migrated Gemini model must be persisted so the old model is not reused")
+        try expect(persisted.provider == "freellmapi" && persisted.model == "auto",
+                   "The FreeLLMAPI migration must be persisted")
     }
 
     @MainActor
