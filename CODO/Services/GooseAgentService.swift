@@ -198,6 +198,15 @@ final class GooseAgentService: ObservableObject {
         guard !isRunning else { status = GooseConnectionError.alreadyRunning.localizedDescription; return }
         guard isConfigured else { status = GooseConnectionError.missingConfiguration.localizedDescription; return }
         guard let executable = locateGoose() else { status = GooseConnectionError.notInstalled.localizedDescription; return }
+        if configuration.provider == "freellmapi" {
+            let endpoint = configuration.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let components = URLComponents(string: endpoint),
+                  ["http", "https"].contains(components.scheme?.lowercased() ?? ""),
+                  let host = components.host, !host.isEmpty else {
+                status = "Enter a valid FreeLLMAPI server URL, such as http://localhost:3001."
+                return
+            }
+        }
 
         let didStart = project.bookmarkData != nil ? root.startAccessingSecurityScopedResource() : false
         if project.bookmarkData != nil && !didStart {
