@@ -171,7 +171,7 @@ final class GooseAgentService: ObservableObject {
             environment["GOOSE_API_KEY"] = key
             if configuration.provider == "openai" { environment["OPENAI_API_KEY"] = key }
             if configuration.provider == "anthropic" { environment["ANTHROPIC_API_KEY"] = key }
-            if configuration.provider == "google" { environment["GEMINI_API_KEY"] = key }
+            if configuration.provider == "google" { environment["GOOGLE_API_KEY"] = key }
         }
 
         let safePrompt = """
