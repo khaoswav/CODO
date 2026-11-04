@@ -48,7 +48,7 @@ enum GooseConnectionError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notInstalled: "Goose CLI was not found. Install Goose and reopen CODO."
+        case .notInstalled: "The agent runtime is unavailable. Install Goose CLI for the current compatibility runtime."
         case .missingConfiguration: "Choose a provider and model, then save your API key in CODO settings."
         case .alreadyRunning: "A Goose task is already running."
         case .launchFailed(let message): "Goose could not start: \(message)"
@@ -187,7 +187,7 @@ final class GooseAgentService: ObservableObject {
         do {
             try check.run()
             check.waitUntilExit()
-            status = check.terminationStatus == 0 ? "Goose CLI detected" : "Goose CLI error"
+            status = check.terminationStatus == 0 ? "Agent runtime detected" : "Agent runtime error"
         } catch {
             status = error.localizedDescription
         }
@@ -260,7 +260,7 @@ final class GooseAgentService: ObservableObject {
         task.standardError = outputPipe
         output = ""
         proposal = ""
-        status = "Starting Goose…"
+        status = "Starting CODO agent…"
         process = task
         pipe = outputPipe
         scopedRoot = didStart ? root : nil
@@ -294,7 +294,7 @@ final class GooseAgentService: ObservableObject {
 
         do {
             try task.run()
-            status = "Goose is analyzing"
+            status = "CODO agent is analyzing"
         } catch {
             outputPipe.fileHandleForReading.readabilityHandler = nil
             process = nil
@@ -308,7 +308,7 @@ final class GooseAgentService: ObservableObject {
 
     func stop() {
         guard let process, process.isRunning else { return }
-        status = "Stopping Goose…"
+        status = "Stopping agent…"
         process.terminate()
     }
 }
