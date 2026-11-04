@@ -98,14 +98,14 @@ struct WorkspaceView: View {
         } message: {
             Text(patchError ?? "")
         }
-        .alert("Allow Goose to analyze this project?", isPresented: $showRunApproval) {
+        .alert("Allow CODO to analyze this project?", isPresented: $showRunApproval) {
             Button("Cancel", role: .cancel) {
                 isFixRequest = false
                 orchestrator.cancelCurrentStep("Agent run cancelled by the user.", output: agent.output)
             }
             Button("Approve analysis") { startAnalysis() }
         } message: {
-            Text("Goose will receive your task and access the selected project folder. It is instructed to inspect files and return proposed changes only. Do not treat the agent's instructions as a security boundary; review all output before applying changes.")
+            Text("CODO's current agent runtime will inspect the selected project and return proposed changes only. Review all output before approving any file changes or build commands.")
         }
         .alert("Goose settings", isPresented: $showKeySaved) {
             Button("OK", role: .cancel) { }
@@ -127,7 +127,7 @@ struct WorkspaceView: View {
                     }
                     activeHistoryTaskID = nil
                     if userCancelledAgent {
-                        orchestrator.cancelCurrentStep("Goose was stopped by the user.", output: agent.output)
+                        orchestrator.cancelCurrentStep("The agent was stopped by the user.", output: agent.output)
                     } else if code != 0 {
                         orchestrator.failCurrentStep("Goose exited with status \(code).", output: agent.output)
                     }
@@ -187,7 +187,7 @@ struct WorkspaceView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("AI Workspace").font(.system(size: 19, weight: .semibold))
+                Text("CODO Agent").font(.system(size: 19, weight: .semibold))
                 Text(project?.name ?? "No project selected")
                     .font(.system(size: 11)).foregroundStyle(CODOTheme.secondaryText)
             }
@@ -362,9 +362,9 @@ struct WorkspaceView: View {
                 }
             }
             HStack {
-                Label("Goose CLI", systemImage: "terminal")
+                Label("Agent runtime", systemImage: "terminal")
                 Spacer()
-                Button("Check installation") { agent.checkConnection() }
+                Button("Check runtime") { agent.checkConnection() }
             }
             Text("FreeLLMAPI uses http://localhost:3001 by default. The unified key is passed only to the agent process and is never written to project files.")
                 .font(.system(size: 10)).foregroundStyle(CODOTheme.mutedText)
@@ -390,7 +390,7 @@ struct WorkspaceView: View {
         }
         guard agent.locateGoose() != nil else {
             patchError = "The current compatibility runtime was not found. The built-in agent engine is the next migration milestone."
-            orchestrator.failCurrentStep("Goose CLI is not installed.")
+            orchestrator.failCurrentStep("The agent runtime is not installed.")
             return
         }
         agent.configuration = GooseConfiguration(provider: provider, model: model)
