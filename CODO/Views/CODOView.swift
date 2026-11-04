@@ -17,6 +17,8 @@ struct CODOView: View {
                     Rectangle().fill(CODOTheme.border).frame(width: 1)
                     WorkspaceView(pendingPrompt: nil, onPromptConsumed: {})
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Rectangle().fill(CODOTheme.border).frame(width: 1)
+                    agentActivityPanel
                 }
             }
         }
@@ -24,6 +26,132 @@ struct CODOView: View {
         .environmentObject(taskQueue)
         .environmentObject(orchestrator)
         .onAppear { logoBreathing = true }
+    }
+
+
+    private var agentActivityPanel: some View {
+        VStack(alignment: .leading, spacing: 17) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("AGENT CONTROL")
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .tracking(1.5)
+                        .foregroundStyle(CODOTheme.mutedText)
+                    Text(orchestrator.activeWorkflow == nil ? "Standing by" : "Live execution")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(CODOTheme.primaryText)
+                }
+                Spacer()
+                Circle()
+                    .fill(orchestrator.activeWorkflow == nil ? CODOTheme.accentSecondary : CODOTheme.glow)
+                    .frame(width: 8, height: 8)
+                    .shadow(color: CODOTheme.glow.opacity(0.8), radius: 8)
+            }
+
+            if let workflow = orchestrator.activeWorkflow {
+                Text(workflow.request)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(CODOTheme.secondaryText)
+                    .lineLimit(4)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                VStack(alignment: .leading, spacing: 13) {
+                    ForEach(workflow.steps) { step in
+                        HStack(alignment: .top, spacing: 9) {
+                            Image(systemName: stepSymbol(for: step.status))
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(stepColor(for: step.status))
+                                .frame(width: 18, height: 18)
+                                .background(stepColor(for: step.status).opacity(0.13), in: Circle())
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(step.title)
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(CODOTheme.primaryText)
+                                Text(step.status.rawValue)
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundStyle(stepColor(for: step.status))
+                                if let error = step.errorMessage, !error.isEmpty {
+                                    Text(error)
+                                        .font(.system(size: 9))
+                                        .foregroundStyle(CODOTheme.red)
+                                        .lineLimit(3)
+                                }
+                            }
+                            Spacer(minLength: 0)
+                        }
+                    }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(CODOTheme.accent.opacity(0.18))
+                            .frame(width: 92, height: 92)
+                            .blur(radius: 22)
+                        Circle()
+                            .stroke(CODOTheme.accent.opacity(0.35), lineWidth: 1)
+                            .frame(width: 66, height: 66)
+                        Circle()
+                            .stroke(CODOTheme.glow.opacity(0.28), lineWidth: 1)
+                            .frame(width: 48, height: 48)
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 22, weight: .light))
+                            .foregroundStyle(CODOTheme.highlight)
+                            .shadow(color: CODOTheme.glow.opacity(0.7), radius: 12)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    Text("Your agent is ready")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(CODOTheme.primaryText)
+                    Text("A task plan and its live steps will appear here when you start working.")
+                        .font(.system(size: 10))
+                        .foregroundStyle(CODOTheme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .background(CODOTheme.surface.opacity(0.62), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous).stroke(CODOTheme.border, lineWidth: 1))
+            }
+
+            Spacer(minLength: 0)
+
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Plan before changes", systemImage: "list.number")
+                Label("Review before applying", systemImage: "checkmark.shield")
+                Label("Verify with build and tests", systemImage: "checkmark.seal")
+            }
+            .font(.system(size: 9, weight: .medium))
+            .foregroundStyle(CODOTheme.secondaryText)
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+        }
+        .padding(15)
+        .frame(width: 236, maxHeight: .infinity)
+        .background(.ultraThinMaterial)
+    }
+
+    private func stepColor(for status: AgentStepStatus) -> Color {
+        switch status {
+        case .pending: CODOTheme.mutedText
+        case .running: CODOTheme.highlight
+        case .awaitingApproval: CODOTheme.orange
+        case .succeeded: CODOTheme.green
+        case .failed: CODOTheme.red
+        case .cancelled: CODOTheme.mutedText
+        }
+    }
+
+    private func stepSymbol(for status: AgentStepStatus) -> String {
+        switch status {
+        case .pending: "circle"
+        case .running: "waveform"
+        case .awaitingApproval: "hand.raised.fill"
+        case .succeeded: "checkmark"
+        case .failed: "exclamationmark"
+        case .cancelled: "xmark"
+        }
     }
 
     private var topBar: some View {
