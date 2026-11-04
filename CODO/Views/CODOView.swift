@@ -128,7 +128,7 @@ struct CODOView: View {
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
         }
         .padding(15)
-        .frame(width: 236, maxHeight: .infinity)
+        .frame(minWidth: 236, idealWidth: 236, maxWidth: 236, maxHeight: .infinity)
         .background(.ultraThinMaterial)
     }
 
