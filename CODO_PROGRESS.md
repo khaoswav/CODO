@@ -1,10 +1,10 @@
 # CODO Development Progress
 
 ## Product
-Native macOS development command center. Tagline: **Think. Code. Create.**
+Native macOS Goose-style coding agent powered by FreeLLMAPI-compatible provider access. One focused agent workspace for local project automation, approved edits, and verified build/test results.
 
 ## Design direction
-Apple-native SwiftUI, system light/dark appearance, semantic AppKit colors, native project selection, and a restrained violet accent.
+Axor-inspired premium AI control center, implemented natively in SwiftUI. Plasma Fusion palette: obsidian `#0B0814`, glass plum `#20102B`, electric violet `#8B35FF`, neon pink `#F044B8`, and highlight pink `#FF9BCE`. Layered translucent panels, controlled violet/pink glow, high-contrast typography, and motion used only to communicate agent activity.
 
 ## Completed
 - [x] Native SwiftUI app entry point and Xcode project
@@ -188,3 +188,10 @@ Current command execution uses fixed, typed command cases and Foundation Process
 - [ ] Remove the Goose CLI runtime dependency by implementing and validating CODO's built-in provider/agent engine. The current runtime still uses the Goose compatibility adapter.
 - [ ] Run Debug and Release CI for this redesign branch.
 - [ ] Launch and visually inspect the app on the user's physical Mac. This has not yet been performed.
+
+
+## Product scope reset
+- [x] Lock the product to one Goose-style local coding-agent workflow; unrelated dashboard/navigation surfaces are not part of the intended product.
+- [x] Select the Axor-inspired Plasma Fusion visual identity and apply its color tokens to the shared SwiftUI theme.
+- [ ] Remove legacy dashboard and unrelated developer-intelligence/terminal UI sources from the app target after verifying all Goose workflow dependencies.
+- [ ] Complete and validate FreeLLMAPI provider compatibility and local Mac automation permissions.
