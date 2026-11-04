@@ -10,6 +10,7 @@ struct CODOApp: App {
                 .environmentObject(store)
                 .frame(minWidth: 980, minHeight: 660)
         }
+        .defaultSize(width: 1280, height: 820)
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {
