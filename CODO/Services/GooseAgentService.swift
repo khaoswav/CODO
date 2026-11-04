@@ -159,6 +159,57 @@ final class GooseAgentService: ObservableObject {
         status = "API key removed"
     }
 
+    func checkFreeLLMAPIConnection() {
+        guard configuration.provider == "freellmapi" else { return }
+        guard let key = apiKeyProvider(), !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            status = "FreeLLMAPI unified API key is not configured"
+            return
+        }
+        guard var components = URLComponents(string: configuration.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)),
+              ["http", "https"].contains(components.scheme?.lowercased() ?? ""),
+              let host = components.host, !host.isEmpty else {
+            status = "Invalid FreeLLMAPI server URL"
+            return
+        }
+        let existingPath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if existingPath.isEmpty {
+            components.path = "/v1/models"
+        } else if existingPath.hasSuffix("/v1") {
+            components.path = "/" + existingPath + "/models"
+        } else {
+            components.path = "/" + existingPath + "/v1/models"
+        }
+        guard let url = components.url else {
+            status = "Invalid FreeLLMAPI server URL"
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 8
+        status = "Checking FreeLLMAPI…"
+
+        Task {
+            do {
+                let (_, response) = try await URLSession.shared.data(for: request)
+                guard let http = response as? HTTPURLResponse else {
+                    status = "FreeLLMAPI returned an invalid response"
+                    return
+                }
+                if (200..<300).contains(http.statusCode) {
+                    status = "FreeLLMAPI connected"
+                } else if http.statusCode == 401 || http.statusCode == 403 {
+                    status = "FreeLLMAPI rejected the unified API key"
+                } else {
+                    status = "FreeLLMAPI responded with HTTP \(http.statusCode)"
+                }
+            } catch {
+                status = "FreeLLMAPI unavailable: \(error.localizedDescription)"
+            }
+        }
+    }
+
     func locateGoose() -> URL? {
         if let executableOverride, FileManager.default.isExecutableFile(atPath: executableOverride.path) {
             return executableOverride
