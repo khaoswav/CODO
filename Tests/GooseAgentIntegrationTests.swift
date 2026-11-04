@@ -6,9 +6,11 @@ struct GooseAgentIntegrationTests {
     @MainActor
     static func main() throws {
         try testApprovalGateAndProviderConfiguration()
+        try testLegacyProviderMigrationToFreeLLMAPI()
         try testGooseProcessEnvironmentAndPrompt()
+        try testFreeLLMAPIProviderEnvironment()
         try testGooseProcessCancellation()
-        print("PASS: 3 Goose CLI process integration groups")
+        print("PASS: 5 Goose CLI process integration groups")
     }
 
     @MainActor
@@ -28,6 +30,33 @@ struct GooseAgentIntegrationTests {
         try expect(!missingKey.isRunning, "Goose must not start without a provider key")
         try expect(missingKey.status == GooseConnectionError.missingConfiguration.localizedDescription,
                    "Missing provider credentials must produce a clear configuration error")
+    }
+
+    @MainActor
+    @MainActor
+    static func testLegacyProviderMigrationToFreeLLMAPI() throws {
+        let defaults = UserDefaults.standard
+        let key = "goose.configuration"
+        let original = defaults.data(forKey: key)
+        defer {
+            if let original { defaults.set(original, forKey: key) }
+            else { defaults.removeObject(forKey: key) }
+        }
+
+        let legacy = GooseConfiguration(provider: "google", model: "gemini-2.5-flash")
+        defaults.set(try JSONEncoder().encode(legacy), forKey: key)
+        let service = GooseAgentService(apiKeyProvider: { "test-key" })
+
+        try expect(service.configuration.provider == "freellmapi",
+                   "Legacy provider settings must migrate to the single FreeLLMAPI gateway")
+        try expect(service.configuration.model == "auto",
+                   "Legacy provider-specific models must migrate to FreeLLMAPI auto routing")
+        try expect(service.configuration.baseURL == "http://localhost:3001",
+                   "Legacy configurations must receive the local FreeLLMAPI server default")
+        let persistedData = defaults.data(forKey: key)
+        let persisted = try JSONDecoder().decode(GooseConfiguration.self, from: persistedData ?? Data())
+        try expect(persisted.provider == "freellmapi" && persisted.model == "auto",
+                   "The FreeLLMAPI migration must be persisted")
     }
 
     @MainActor
@@ -69,6 +98,45 @@ struct GooseAgentIntegrationTests {
                    prompt.contains("Do not create, edit, delete, rename, or move files"),
                    "Goose must receive the read-only proposal safety boundary")
         try expect(!service.isRunning, "The service must clear its running state after process completion")
+    }
+
+
+    @MainActor
+    static func testFreeLLMAPIProviderEnvironment() throws {
+        let root = try makeTemporaryDirectory("CODO-FreeLLMAPI-Provider")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let environmentCapture = root.appendingPathComponent("environment.txt")
+        let script = """
+        #!/bin/sh
+        printf '%s\\n' "$GOOSE_PROVIDER" "$GOOSE_MODEL" "$GOOSE_API_KEY" "$OPENAI_API_KEY" "$OPENAI_HOST" "$OPENAI_BASE_PATH" > '\\(environmentCapture.path)'
+        echo FREE_LLM_API_OK
+        """
+        let executable = root.appendingPathComponent("fake-goose")
+        try writeExecutable(script, to: executable)
+        let project = CODOProject(name: "FreeLLMAPI Fixture", path: root.path, kind: .macOS)
+        let service = GooseAgentService(executableURL: executable, apiKeyProvider: { "freellmapi-test-key" })
+        service.configuration = GooseConfiguration(
+            provider: "freellmapi",
+            model: "auto",
+            baseURL: "http://127.0.0.1:3001/v1"
+        )
+
+        var completionCode: Int32?
+        service.onCompletion = { completionCode = $0 }
+        service.runAnalysis(
+            prompt: "Inspect the project and propose a safe change",
+            project: project,
+            root: root,
+            approvalGranted: true
+        )
+        try waitForCompletion(service, completionCode: { completionCode })
+        try expect(completionCode == 0, "FreeLLMAPI-backed Goose should complete successfully")
+        let environment = try String(contentsOf: environmentCapture, encoding: .utf8)
+            .split(separator: "\n").map(String.init)
+        try expect(environment == [
+            "openai", "auto", "freellmapi-test-key", "freellmapi-test-key",
+            "http://127.0.0.1:3001", "v1/chat/completions"
+        ], "FreeLLMAPI must be passed to Goose through its OpenAI-compatible endpoint configuration")
     }
 
     @MainActor

@@ -3,8 +3,45 @@ import Security
 import SwiftUI
 
 struct GooseConfiguration: Codable, Equatable {
-    var provider = "openai"
-    var model = "gpt-4.1"
+    var provider: String
+    var model: String
+    var baseURL: String
+
+    init(provider: String = "freellmapi", model: String = "auto", baseURL: String = "http://localhost:3001") {
+        self.provider = provider
+        self.model = model
+        self.baseURL = baseURL
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case provider, model, baseURL
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        provider = try values.decodeIfPresent(String.self, forKey: .provider) ?? "freellmapi"
+        model = try values.decodeIfPresent(String.self, forKey: .model) ?? "auto"
+        baseURL = try values.decodeIfPresent(String.self, forKey: .baseURL) ?? "http://localhost:3001"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(provider, forKey: .provider)
+        try values.encode(model, forKey: .model)
+        try values.encode(baseURL, forKey: .baseURL)
+    }
+
+    static func migrated(_ configuration: GooseConfiguration) -> GooseConfiguration {
+        var result = configuration
+        // CODO now uses FreeLLMAPI as its single model gateway.
+        // Old provider-specific credentials are not reused by the new Keychain service.
+        result.provider = "freellmapi"
+        result.model = "auto"
+        if result.baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            result.baseURL = "http://localhost:3001"
+        }
+        return result
+    }
 }
 
 enum GooseConnectionError: LocalizedError {
@@ -15,7 +52,7 @@ enum GooseConnectionError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notInstalled: "Goose CLI was not found. Install Goose and reopen CODO."
+        case .notInstalled: "The agent runtime is unavailable. Install Goose CLI for the current compatibility runtime."
         case .missingConfiguration: "Choose a provider and model, then save your API key in CODO settings."
         case .alreadyRunning: "A Goose task is already running."
         case .launchFailed(let message): "Goose could not start: \(message)"
@@ -24,7 +61,7 @@ enum GooseConnectionError: LocalizedError {
 }
 
 enum CODOKeychain {
-    private static let service = "com.kialne.codo.goose"
+    private static let service = "com.kialne.codo.freellmapi"
 
     static func save(_ value: String, account: String = "provider-api-key") throws {
         let data = Data(value.utf8)
@@ -92,7 +129,11 @@ final class GooseAgentService: ObservableObject {
         self.apiKeyProvider = apiKeyProvider
         if let data = UserDefaults.standard.data(forKey: "goose.configuration"),
            let saved = try? JSONDecoder().decode(GooseConfiguration.self, from: data) {
-            configuration = saved
+            let migrated = GooseConfiguration.migrated(saved)
+            configuration = migrated
+            if migrated != saved, let updatedData = try? JSONEncoder().encode(migrated) {
+                UserDefaults.standard.set(updatedData, forKey: "goose.configuration")
+            }
         } else {
             configuration = GooseConfiguration()
         }
@@ -101,19 +142,76 @@ final class GooseAgentService: ObservableObject {
     var onCompletion: ((Int32) -> Void)?
 
     var isConfigured: Bool {
-        !configuration.provider.isEmpty &&
-        !configuration.model.isEmpty &&
-        apiKeyProvider() != nil
+        !configuration.provider.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !configuration.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !(apiKeyProvider() ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     func saveAPIKey(_ key: String) throws {
-        try CODOKeychain.save(key.trimmingCharacters(in: .whitespacesAndNewlines))
+        let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty else {
+            throw NSError(domain: "CODO.Configuration", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "API key cannot be empty."
+            ])
+        }
+        try CODOKeychain.save(trimmedKey)
         status = "Configured"
     }
 
     func removeAPIKey() {
         CODOKeychain.delete()
         status = "API key removed"
+    }
+
+    func checkFreeLLMAPIConnection() {
+        guard configuration.provider == "freellmapi" else { return }
+        guard let key = apiKeyProvider(), !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            status = "FreeLLMAPI unified API key is not configured"
+            return
+        }
+        guard var components = URLComponents(string: configuration.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)),
+              ["http", "https"].contains(components.scheme?.lowercased() ?? ""),
+              let host = components.host, !host.isEmpty else {
+            status = "Invalid FreeLLMAPI server URL"
+            return
+        }
+        let existingPath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if existingPath.isEmpty {
+            components.path = "/v1/models"
+        } else if existingPath.hasSuffix("/v1") {
+            components.path = "/" + existingPath + "/models"
+        } else {
+            components.path = "/" + existingPath + "/v1/models"
+        }
+        guard let url = components.url else {
+            status = "Invalid FreeLLMAPI server URL"
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 8
+        status = "Checking FreeLLMAPI…"
+
+        Task {
+            do {
+                let (_, response) = try await URLSession.shared.data(for: request)
+                guard let http = response as? HTTPURLResponse else {
+                    status = "FreeLLMAPI returned an invalid response"
+                    return
+                }
+                if (200..<300).contains(http.statusCode) {
+                    status = "FreeLLMAPI connected"
+                } else if http.statusCode == 401 || http.statusCode == 403 {
+                    status = "FreeLLMAPI rejected the unified API key"
+                } else {
+                    status = "FreeLLMAPI responded with HTTP \(http.statusCode)"
+                }
+            } catch {
+                status = "FreeLLMAPI unavailable: \(error.localizedDescription)"
+            }
+        }
     }
 
     func locateGoose() -> URL? {
@@ -144,7 +242,7 @@ final class GooseAgentService: ObservableObject {
         do {
             try check.run()
             check.waitUntilExit()
-            status = check.terminationStatus == 0 ? "Goose CLI detected" : "Goose CLI error"
+            status = check.terminationStatus == 0 ? "Agent runtime detected" : "Agent runtime error"
         } catch {
             status = error.localizedDescription
         }
@@ -155,6 +253,15 @@ final class GooseAgentService: ObservableObject {
         guard !isRunning else { status = GooseConnectionError.alreadyRunning.localizedDescription; return }
         guard isConfigured else { status = GooseConnectionError.missingConfiguration.localizedDescription; return }
         guard let executable = locateGoose() else { status = GooseConnectionError.notInstalled.localizedDescription; return }
+        if configuration.provider == "freellmapi" {
+            let endpoint = configuration.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let components = URLComponents(string: endpoint),
+                  ["http", "https"].contains(components.scheme?.lowercased() ?? ""),
+                  let host = components.host, !host.isEmpty else {
+                status = "Enter a valid FreeLLMAPI server URL, such as http://localhost:3001."
+                return
+            }
+        }
 
         let didStart = project.bookmarkData != nil ? root.startAccessingSecurityScopedResource() : false
         if project.bookmarkData != nil && !didStart {
@@ -165,13 +272,27 @@ final class GooseAgentService: ObservableObject {
         let task = Process()
         let outputPipe = Pipe()
         var environment = ProcessInfo.processInfo.environment
-        environment["GOOSE_PROVIDER"] = configuration.provider
+        let isFreeLLMAPI = configuration.provider == "freellmapi"
+        environment["GOOSE_PROVIDER"] = isFreeLLMAPI ? "openai" : configuration.provider
         environment["GOOSE_MODEL"] = configuration.model
         if let key = apiKeyProvider() {
             environment["GOOSE_API_KEY"] = key
-            if configuration.provider == "openai" { environment["OPENAI_API_KEY"] = key }
+            if isFreeLLMAPI || configuration.provider == "openai" {
+                environment["OPENAI_API_KEY"] = key
+            }
             if configuration.provider == "anthropic" { environment["ANTHROPIC_API_KEY"] = key }
-            if configuration.provider == "google" { environment["GEMINI_API_KEY"] = key }
+            if configuration.provider == "google" { environment["GOOGLE_API_KEY"] = key }
+        }
+        if isFreeLLMAPI {
+            if var components = URLComponents(string: configuration.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                // Goose's OpenAI provider appends OPENAI_BASE_PATH to OPENAI_HOST.
+                // FreeLLMAPI exposes the OpenAI-compatible endpoint at /v1/chat/completions.
+                components.path = ""
+                components.query = nil
+                components.fragment = nil
+                environment["OPENAI_HOST"] = components.string
+                environment["OPENAI_BASE_PATH"] = "v1/chat/completions"
+            }
         }
 
         let safePrompt = """
@@ -194,7 +315,7 @@ final class GooseAgentService: ObservableObject {
         task.standardError = outputPipe
         output = ""
         proposal = ""
-        status = "Starting Goose…"
+        status = "Starting CODO agent…"
         process = task
         pipe = outputPipe
         scopedRoot = didStart ? root : nil
@@ -228,7 +349,7 @@ final class GooseAgentService: ObservableObject {
 
         do {
             try task.run()
-            status = "Goose is analyzing"
+            status = "CODO agent is analyzing"
         } catch {
             outputPipe.fileHandleForReading.readabilityHandler = nil
             process = nil
@@ -242,7 +363,7 @@ final class GooseAgentService: ObservableObject {
 
     func stop() {
         guard let process, process.isRunning else { return }
-        status = "Stopping Goose…"
+        status = "Stopping agent…"
         process.terminate()
     }
 }

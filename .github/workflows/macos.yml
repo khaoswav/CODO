@@ -35,7 +35,6 @@ jobs:
             CODO/Services/ProjectFileChangeService.swift \
             CODO/Services/ProjectBuildPlanner.swift \
             CODO/Services/ProjectProcessRunner.swift \
-            CODO/Services/GitWorkflowService.swift \
             Tests/DeveloperIntelligenceTests.swift \
             -framework SwiftUI \
             -o "$RUNNER_TEMP/codo-intelligence-tests"
