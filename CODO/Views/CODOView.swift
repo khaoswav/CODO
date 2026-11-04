@@ -26,6 +26,7 @@ struct CODOView: View {
         .environmentObject(taskQueue)
         .environmentObject(orchestrator)
         .onAppear { logoBreathing = true }
+        .preferredColorScheme(.dark)
     }
 
 
