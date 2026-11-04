@@ -366,6 +366,13 @@ struct WorkspaceView: View {
                 Spacer()
                 Button("Check runtime") { agent.checkConnection() }
             }
+            if provider == "freellmapi" {
+                HStack {
+                    Label("FreeLLMAPI", systemImage: "network")
+                    Spacer()
+                    Button("Test connection") { agent.checkFreeLLMAPIConnection() }
+                }
+            }
             Text("FreeLLMAPI uses http://localhost:3001 by default. The unified key is passed only to the agent process and is never written to project files.")
                 .font(.system(size: 10)).foregroundStyle(CODOTheme.mutedText)
         }
