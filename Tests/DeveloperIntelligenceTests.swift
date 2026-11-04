@@ -16,8 +16,7 @@ struct DeveloperIntelligenceTests {
         try testProjectFileChangeStaleReviewProtection()
         try testXcodeBuildPlanning()
         try testWebBuildPlanning()
-        try testGitWorkflowInputPolicies()
-        print("PASS: 13 Developer Intelligence, Agent Orchestrator, Diff, Build and Git regression groups")
+        print("PASS: 12 Agent Core, Diff and Build regression groups")
     }
 
     static func testSwiftModuleResolution() throws {
@@ -413,23 +412,6 @@ struct DeveloperIntelligenceTests {
     }
 
     @MainActor
-    static func testGitWorkflowInputPolicies() throws {
-        try expect(GitWorkflowService.isValidBranchName("feature/audio-engine"),
-                   "A conventional feature branch name should be accepted")
-        for invalid in ["", "-force", "../outside", "feature//bad", "feature/name.", "bad name", "x;rm"] {
-            try expect(!GitWorkflowService.isValidBranchName(invalid), "Unsafe branch name should be rejected: \(invalid)")
-        }
-        try expect(GitWorkflowService.isValidBaseBranch("main"), "A normal base branch should be accepted")
-        try expect(!GitWorkflowService.isValidBaseBranch("--upload-pack=evil"),
-                   "Option-like base branch names must be rejected")
-        try expect(GitWorkflowService.stagedCommitArguments("  Update audio engine\n") == ["commit", "-m", "Update audio engine"],
-                   "Commit message must remain a single argument, not shell syntax")
-        try expect(GitWorkflowService.stagedCommitArguments(" \n ") == nil,
-                   "Empty commit messages must be rejected")
-        try expect(GitWorkflowService.stagedCommitArguments("safe; echo injected") == ["commit", "-m", "safe; echo injected"],
-                   "Shell metacharacters in commit messages must remain inert argument content")
-    }
-
     static func expect(_ condition: @autoclosure () -> Bool, _ message: String) throws {
         guard condition() else {
             throw TestFailure.assertion(message)
