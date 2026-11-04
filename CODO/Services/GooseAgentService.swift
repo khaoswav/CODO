@@ -3,8 +3,33 @@ import Security
 import SwiftUI
 
 struct GooseConfiguration: Codable, Equatable {
-    var provider = "google"
-    var model = "gemini-3.8-flash"
+    var provider: String
+    var model: String
+    var baseURL: String
+
+    init(provider: String = "freellmapi", model: String = "auto", baseURL: String = "http://localhost:3001") {
+        self.provider = provider
+        self.model = model
+        self.baseURL = baseURL
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case provider, model, baseURL
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        provider = try values.decodeIfPresent(String.self, forKey: .provider) ?? "freellmapi"
+        model = try values.decodeIfPresent(String.self, forKey: .model) ?? "auto"
+        baseURL = try values.decodeIfPresent(String.self, forKey: .baseURL) ?? "http://localhost:3001"
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(provider, forKey: .provider)
+        try values.encode(model, forKey: .model)
+        try values.encode(baseURL, forKey: .baseURL)
+    }
 
     static func migrated(_ configuration: GooseConfiguration) -> GooseConfiguration {
         var result = configuration
@@ -183,13 +208,27 @@ final class GooseAgentService: ObservableObject {
         let task = Process()
         let outputPipe = Pipe()
         var environment = ProcessInfo.processInfo.environment
-        environment["GOOSE_PROVIDER"] = configuration.provider
+        let isFreeLLMAPI = configuration.provider == "freellmapi"
+        environment["GOOSE_PROVIDER"] = isFreeLLMAPI ? "openai" : configuration.provider
         environment["GOOSE_MODEL"] = configuration.model
         if let key = apiKeyProvider() {
             environment["GOOSE_API_KEY"] = key
-            if configuration.provider == "openai" { environment["OPENAI_API_KEY"] = key }
+            if isFreeLLMAPI || configuration.provider == "openai" {
+                environment["OPENAI_API_KEY"] = key
+            }
             if configuration.provider == "anthropic" { environment["ANTHROPIC_API_KEY"] = key }
             if configuration.provider == "google" { environment["GOOGLE_API_KEY"] = key }
+        }
+        if isFreeLLMAPI {
+            if var components = URLComponents(string: configuration.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                // Goose's OpenAI provider appends OPENAI_BASE_PATH to OPENAI_HOST.
+                // FreeLLMAPI exposes the OpenAI-compatible endpoint at /v1/chat/completions.
+                components.path = ""
+                components.query = nil
+                components.fragment = nil
+                environment["OPENAI_HOST"] = components.string
+                environment["OPENAI_BASE_PATH"] = "v1/chat/completions"
+            }
         }
 
         let safePrompt = """
