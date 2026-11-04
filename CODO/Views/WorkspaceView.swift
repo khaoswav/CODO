@@ -206,90 +206,127 @@ struct WorkspaceView: View {
     }
 
     private var welcome: some View {
-        VStack(spacing: 15) {
-            Image(systemName: "sparkles").font(.system(size: 30, weight: .light)).foregroundStyle(CODOTheme.accent)
-                .frame(width: 66, height: 66).background(CODOTheme.accentSoft, in: RoundedRectangle(cornerRadius: 19))
-            Text("What are we building today?").font(.system(size: 21, weight: .semibold))
-            Text("Describe a task. Goose will inspect the selected project and prepare a plan.")
-                .font(.system(size: 12)).foregroundStyle(CODOTheme.secondaryText)
-                .multilineTextAlignment(.center).frame(maxWidth: 420)
-            Label("Changes are proposals. Review before applying.", systemImage: "shield.lefthalf.filled")
-                .font(.system(size: 11, weight: .medium)).foregroundStyle(CODOTheme.green)
+        VStack(spacing: 18) {
+            ZStack {
+                Circle().fill(CODOTheme.accentSecondary.opacity(0.14)).frame(width: 150, height: 150).blur(radius: 24)
+                Circle().stroke(CODOTheme.accent.opacity(0.20), lineWidth: 1).frame(width: 112, height: 112)
+                Circle().stroke(CODOTheme.accentSecondary.opacity(0.22), lineWidth: 1).frame(width: 84, height: 84)
+                RoundedRectangle(cornerRadius: 23, style: .continuous)
+                    .fill(LinearGradient(colors: [CODOTheme.accent, CODOTheme.accentSecondary], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(width: 58, height: 58)
+                    .overlay(Image(systemName: "asterisk").font(.system(size: 28, weight: .light)).foregroundStyle(Color.black.opacity(0.82)))
+                    .shadow(color: CODOTheme.accent.opacity(0.28), radius: 22)
+            }
+            Text("What should we build?")
+                .font(.system(size: 25, weight: .semibold, design: .rounded))
+                .tracking(-0.5)
+            Text("Give your agent a goal. It will inspect the selected project, prepare a plan, and show proposed changes for your review.")
+                .font(.system(size: 12))
+                .foregroundStyle(CODOTheme.secondaryText)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 430)
+            HStack(spacing: 7) {
+                Image(systemName: "lock.shield.fill").foregroundStyle(CODOTheme.green)
+                Text("You approve changes before anything is applied.").foregroundStyle(CODOTheme.secondaryText)
+            }
+            .font(.system(size: 10, weight: .medium))
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(.thinMaterial, in: Capsule())
         }
+        .frame(maxWidth: .infinity)
+        .padding(30)
     }
 
     private var outputPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Label("LIVE AGENT OUTPUT", systemImage: "terminal")
-                    .font(.system(size: 10, weight: .bold)).tracking(1).foregroundStyle(CODOTheme.mutedText)
+            HStack(spacing: 9) {
+                ZStack {
+                    Circle().fill(agent.isRunning ? CODOTheme.accent.opacity(0.16) : CODOTheme.green.opacity(0.12)).frame(width: 28, height: 28)
+                    Image(systemName: agent.isRunning ? "waveform" : "checkmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(agent.isRunning ? CODOTheme.accent : CODOTheme.green)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(agent.isRunning ? "Agent is working" : "Agent response").font(.system(size: 11, weight: .semibold))
+                    Text(agent.status).font(.system(size: 9)).foregroundStyle(CODOTheme.mutedText)
+                }
                 Spacer()
                 if !proposedChanges.isEmpty {
-                    Button {
-                        showPatchReview = true
-                    } label: {
-                        Label("Review \(proposedChanges.count)", systemImage: "arrow.left.arrow.right")
-                    }.buttonStyle(.borderedProminent)
+                    Button { showPatchReview = true } label: {
+                        Label("Review changes · \(proposedChanges.count)", systemImage: "arrow.left.arrow.right")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(CODOTheme.accentSecondary)
                 }
                 if agent.isRunning {
-                    Button("Stop") {
+                    Button {
                         userCancelledAgent = true
                         agent.stop()
-                    }.buttonStyle(.bordered)
+                    } label: { Label("Stop", systemImage: "stop.fill") }
+                    .buttonStyle(.bordered)
                 }
-            }.padding(14)
+            }
+            .padding(.horizontal, 18).padding(.vertical, 14)
             Divider().overlay(CODOTheme.border)
             ScrollView {
-                Text(agent.output.isEmpty ? "Waiting for Goose…" : agent.output)
+                Text(agent.output.isEmpty ? "Preparing the response…" : agent.output)
                     .font(.system(size: 11, design: .monospaced))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(16)
-            }.background(CODOTheme.elevated.opacity(0.4))
+                    .padding(20)
+            }
+            .background(CODOTheme.elevated.opacity(0.24))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 18).padding(.vertical, 12)
     }
 
     private var composer: some View {
-        VStack(spacing: 10) {
-            HStack(alignment: .bottom, spacing: 12) {
+        VStack(spacing: 9) {
+            HStack(alignment: .bottom, spacing: 11) {
                 TextEditor(text: $prompt)
                     .font(.system(size: 13))
                     .scrollContentBackground(.hidden)
-                    .frame(minHeight: 72, maxHeight: 120)
-                    .padding(10)
-                    .background(CODOTheme.elevated, in: RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(CODOTheme.border, lineWidth: 1))
+                    .frame(minHeight: 76, maxHeight: 128)
+                    .padding(11)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(CODOTheme.border, lineWidth: 1))
                     .disabled(agent.isRunning)
-                Button {
-                    showRunApproval = true
-                } label: {
-                    Image(systemName: "arrow.up").font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.white).frame(width: 40, height: 40)
-                        .background(CODOTheme.accent, in: RoundedRectangle(cornerRadius: 10))
+                Button { showRunApproval = true } label: {
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(Color.black.opacity(0.85))
+                        .frame(width: 43, height: 43)
+                        .background(LinearGradient(colors: [CODOTheme.accent, Color(hex: 0xA5C7FF)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                    in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .shadow(color: CODOTheme.accent.opacity(0.2), radius: 10, y: 4)
                 }
                 .buttonStyle(.plain)
                 .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || project == nil || agent.isRunning)
-                .opacity(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.45 : 1)
+                .opacity(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.42 : 1)
+                .padding(.bottom, 5)
             }
-            HStack {
-                Label(project == nil ? "No project selected" : "Project-scoped", systemImage: "folder")
-                    .font(.system(size: 10)).foregroundStyle(CODOTheme.mutedText)
+            HStack(spacing: 8) {
+                Label(project == nil ? "Select a project" : project!.name, systemImage: "folder").lineLimit(1)
                 Spacer()
-                Text("Goose · Analysis mode").font(.system(size: 10)).foregroundStyle(CODOTheme.mutedText)
+                Label("Approval required", systemImage: "lock.shield")
             }
-        }.padding(20)
+            .font(.system(size: 9, weight: .medium))
+            .foregroundStyle(CODOTheme.mutedText)
+            .padding(.horizontal, 4)
+        }
+        .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 18)
+        .background(.ultraThinMaterial)
     }
 
     private var settingsSheet: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Goose & Model Provider").font(.system(size: 18, weight: .semibold))
+                Text("Agent connection").font(.system(size: 18, weight: .semibold))
                 Spacer()
                 Button("Close") { showSettings = false }.buttonStyle(.borderless)
             }
-            Text("Goose CLI must be installed separately. CODO stores your API key in macOS Keychain.")
+            Text("Current runtime uses the Goose compatibility adapter. CODO is being moved to its own built-in agent engine. API keys are stored in macOS Keychain.")
                 .font(.system(size: 11)).foregroundStyle(CODOTheme.secondaryText)
             Form {
                 Picker("Provider", selection: $provider) {
@@ -337,12 +374,12 @@ struct WorkspaceView: View {
     private func startAnalysis() {
         guard let project, let root = store.projectRootURL(for: project) else { return }
         guard agent.isConfigured else {
-            patchError = "Goose provider API key is not configured. Save a key in Goose settings before starting this workflow."
+            patchError = "Model provider API key is not configured. Save a key in Agent connection before starting this workflow."
             orchestrator.failCurrentStep("Goose provider is not configured.")
             return
         }
         guard agent.locateGoose() != nil else {
-            patchError = "Goose CLI was not found. Install Goose before starting this workflow."
+            patchError = "The current compatibility runtime was not found. The built-in agent engine is the next migration milestone."
             orchestrator.failCurrentStep("Goose CLI is not installed.")
             return
         }
