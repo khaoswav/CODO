@@ -1,5 +1,13 @@
 import SwiftUI
 
+// Kept only while the legacy dashboard source remains in the Xcode target.
+// The main CODO window no longer exposes dashboard navigation.
+enum WorkspaceTab: String {
+    case workspace
+    case files
+    case activity
+}
+
 struct DashboardView: View {
     @EnvironmentObject private var store: ProjectStore
     @Binding var selectedTab: WorkspaceTab
