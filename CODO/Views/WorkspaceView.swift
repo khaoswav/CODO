@@ -9,8 +9,9 @@ struct WorkspaceView: View {
     @StateObject private var agent = GooseAgentService()
     @State private var prompt = ""
     @State private var apiKey = ""
-    @State private var provider = "openai"
-    @State private var model = "gpt-4.1"
+    @State private var provider = "freellmapi"
+    @State private var model = "auto"
+    @State private var baseURL = "http://localhost:3001"
     @State private var showSettings = false
     @State private var showRunApproval = false
     @State private var showKeySaved = false
@@ -112,6 +113,9 @@ struct WorkspaceView: View {
             Text(agent.status)
         }
         .onAppear {
+            provider = agent.configuration.provider
+            model = agent.configuration.model
+            baseURL = agent.configuration.baseURL
             agent.checkConnection()
             agent.onOutput = { chunk in
                 if let id = activeHistoryTaskID { taskQueue.appendAgentOutput(chunk, taskID: id) }
@@ -326,20 +330,26 @@ struct WorkspaceView: View {
                 Spacer()
                 Button("Close") { showSettings = false }.buttonStyle(.borderless)
             }
-            Text("Current runtime uses the Goose compatibility adapter. CODO is being moved to its own built-in agent engine. API keys are stored in macOS Keychain.")
+            Text("FreeLLMAPI provides the model gateway. Goose runs the coding-agent workflow against its OpenAI-compatible local API. Your unified key is stored in macOS Keychain.")
                 .font(.system(size: 11)).foregroundStyle(CODOTheme.secondaryText)
             Form {
                 Picker("Provider", selection: $provider) {
+                    Text("FreeLLMAPI").tag("freellmapi")
                     Text("OpenAI").tag("openai")
                     Text("Anthropic").tag("anthropic")
                     Text("Google Gemini").tag("google")
                 }
-                TextField("Model", text: $model)
-                SecureField("Provider API key", text: $apiKey)
+                if provider == "freellmapi" {
+                    TextField("FreeLLMAPI server", text: $baseURL)
+                    TextField("Model (auto routes)", text: $model)
+                } else {
+                    TextField("Model", text: $model)
+                }
+                SecureField(provider == "freellmapi" ? "FreeLLMAPI unified API key" : "Provider API key", text: $apiKey)
                 HStack {
                     Button("Save settings") {
                         userCancelledAgent = false
-        agent.configuration = GooseConfiguration(provider: provider, model: model)
+        agent.configuration = GooseConfiguration(provider: provider, model: model, baseURL: baseURL)
                         do {
                             if !apiKey.isEmpty { try agent.saveAPIKey(apiKey); apiKey = "" }
                             agent.checkConnection()
@@ -356,7 +366,7 @@ struct WorkspaceView: View {
                 Spacer()
                 Button("Check installation") { agent.checkConnection() }
             }
-            Text("Provider environment variables are passed only to the Goose process. The key is not written to project files.")
+            Text("FreeLLMAPI uses http://localhost:3001 by default. The unified key is passed only to the agent process and is never written to project files.")
                 .font(.system(size: 10)).foregroundStyle(CODOTheme.mutedText)
         }
         .padding(22)
